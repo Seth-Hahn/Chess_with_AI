@@ -633,12 +633,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
 void Chess::bitMovedFromTo(Bit &bit, BitHolder &src, BitHolder &dst) 
 {
-    bit.setPosition(dst.getPosition());
-    bit.setParent(&dst);
-    dst.setBit(&bit);
     return;
-    
-
 }
 
 //
