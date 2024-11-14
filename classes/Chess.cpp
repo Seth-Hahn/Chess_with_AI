@@ -220,6 +220,10 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
     int  destination_row = 10 - (dst.getPosition().y /64);
 
 
+    if(starting_column == destination_column && starting_row == destination_row) //can set pieces back down in their original spot
+    {
+        return true;
+    }
     if(bit.gameTag() == Pawn)
     {
         //white pawn can move forward one 
