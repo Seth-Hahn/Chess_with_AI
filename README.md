@@ -207,3 +207,9 @@ is that both the column and row difference is less than or equal to one, thus it
 # capturing 
 Capturing logic is incredibly simple at this point, though a few more tweaks are planned for it to make it more complex. Currently, if a capturable piece is hovered over by the 
 capturing piece, the piece to capture is instantly destroyed and the spot becomes available for the capturing piece to occupy.
+
+<img width="1269" alt="Screenshot 2024-11-13 at 2 02 41 PM" src="https://github.com/user-attachments/assets/a9811d89-07de-4289-86bf-a510fb2be0a8">
+
+<img width="1255" alt="Screenshot 2024-11-14 at 2 53 26 PM" src="https://github.com/user-attachments/assets/8405c303-7266-41ee-99ec-43a8adaba623">
+
+
