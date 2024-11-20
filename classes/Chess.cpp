@@ -233,6 +233,20 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             {
                 return false;
             }
+
+            if(destination_row == 8) //queen promotion
+            {
+                if(ImGui::IsMouseReleased(0))
+                {
+                    Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                    bit.~Bit(); //destroy the pawn
+
+                    promoted_queen->setPosition(dst.getPosition());
+                    promoted_queen->setGameTag(Queen);
+                    dst.setBit(promoted_queen);
+                }
+
+            }
             return true;
         }
 
@@ -255,6 +269,20 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             if(!dst.empty() || bit.getOwner()->playerNumber() == 0) //cant move to a non-empty spot
             {
                 return false;
+            }
+
+            if(destination_row == 1) //queen promotion
+            {
+                if(ImGui::IsMouseReleased(0))
+                {
+                    Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                    bit.~Bit(); //destroy the pawn
+
+                    promoted_queen->setPosition(dst.getPosition());
+                    promoted_queen->setGameTag(Queen);
+                    dst.setBit(promoted_queen);
+                }
+
             }
 
             return true;
@@ -282,7 +310,21 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
                 if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1) //if pawn is white and piece to capture is black
                 {
-                    dst.destroyBit();
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        dst.destroyBit();
+
+                        if(destination_row == 8) // queen promotion
+                        {
+                            Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                            bit.~Bit(); //destroy the pawn
+
+                            promoted_queen->setPosition(dst.getPosition());
+                            promoted_queen->setGameTag(Queen);
+                            dst.setBit(promoted_queen);
+                        }
+                        
+                    }
                     return true;
                 }
             }
@@ -292,7 +334,20 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             {
                 if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 0)
                 {
-                    dst.destroyBit();
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        dst.destroyBit();
+
+                        if(destination_row == 1) // queen promotion
+                        {
+                            Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                            bit.~Bit(); //destroy the pawn
+
+                            promoted_queen->setPosition(dst.getPosition());
+                            promoted_queen->setGameTag(Queen);
+                            dst.setBit(promoted_queen);
+                        }
+                    }
                     return true;
                 }
             }
@@ -400,9 +455,13 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
         }
     if(starting_row == destination_row || starting_column == destination_column)
     {
-        if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+        if(ImGui::IsMouseReleased(0))
         {
-        dst.destroyBit();
+            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+            {
+                dst.destroyBit();
+            }
+            bit.movedFromStart();
         }
         return true;
     }
@@ -444,15 +503,18 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
              (destination_row < row_index_of_blocking_piece && row_step < 0) ||            //the bishop cannot jump pieces along any diagonal
              (destination_column > column_index_of_blocking_piece && col_step > 0) ||
              (destination_column < column_index_of_blocking_piece && col_step < 0)))
-        {
-            return false;
-        }
-
-            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
             {
-            dst.destroyBit();
+                return false;
             }
-            return true; 
+
+            if(ImGui::IsMouseReleased(0))
+            {
+                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                {
+                dst.destroyBit();
+                } 
+            }
+            return true;
         }
         return false;
     }
@@ -465,9 +527,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
         if( (row_difference == 2 && column_difference == 1) || //l shaped movement checks
             (row_difference == 1 && column_difference == 2) )
         {
-            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+            if(ImGui::IsMouseReleased(0))
             {
-                dst.destroyBit();
+                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                {
+                    dst.destroyBit();
+                }
             }
             return true;
         }
@@ -481,11 +546,63 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
         if(row_difference <= 1 && column_difference <= 1) //only can move one square in any direction
         {
-            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+            if(ImGui::IsMouseReleased(0))
             {
-                dst.destroyBit();
+                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                {
+                    dst.destroyBit();
+                }
+                bit.movedFromStart();
             }
             return true;
+        
+        }
+
+        //castling 
+        if(starting_row == destination_row && column_difference == 2) //valid castling squares for king
+        {
+            if(!bit.hasMovedFromStart()) //cannot castle if king has moved
+            {
+                if(destination_column - starting_column > 0) //castling to right
+                {
+                    if(!_grid[starting_row - 1][7].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
+                    {
+                        if(ImGui::IsMouseReleased(0))
+                        {
+                            Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][7].bit()); //create a new rook to castle with
+
+                            _grid[starting_row - 1][7].destroyBit(); //remove the old rook
+
+                            rook_to_castle->setPosition(_grid[starting_row - 1][5].getPosition());
+                            _grid[starting_row - 1][5].setBit(rook_to_castle);
+
+                            rook_to_castle->movedFromStart();
+                            bit.movedFromStart();
+                        }
+                        return true;
+                    }
+                }
+
+                if(destination_column - starting_column < 0) //castling to left
+                {
+                    if(!_grid[starting_row - 1][0].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
+                    {
+                        if(ImGui::IsMouseReleased(0))
+                        { 
+                            Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][0].bit()); //create a new rook to castle with
+
+                            _grid[starting_row - 1][0].destroyBit(); //remove the old rook
+
+                            rook_to_castle->setPosition(_grid[starting_row - 1][3].getPosition());
+                            _grid[starting_row - 1][3].setBit(rook_to_castle);
+
+                            rook_to_castle->movedFromStart();
+                            bit.movedFromStart();
+                        }
+                        return true;
+                    }
+                }
+            }
         }
         return false;
     }
@@ -623,10 +740,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             }
         }
 
-        
-        if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
-        {
-            dst.destroyBit();
+        if(ImGui::IsMouseReleased(0))
+        { 
+            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
+            {
+                dst.destroyBit();
+            }
         }
         return true;
     }
