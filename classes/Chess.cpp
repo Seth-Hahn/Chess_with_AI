@@ -247,6 +247,11 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 }
 
             }
+
+            if(ImGui::IsMouseReleased(0))
+            {
+                clear_passant();
+            }
             return true;
         }
 
@@ -255,9 +260,14 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
         {
             if(destination_row == starting_row + 2 && destination_column == starting_column)
             {
-                if(!dst.empty() ||!_grid[destination_row - 2][destination_column-1].empty()) //
+                if(!dst.empty() ||!_grid[destination_row - 2][destination_column-1].empty()) //cant move to an occupied spot or jump a piece to move forward 2
                 {
                     return false;
+                }
+
+                if(ImGui::IsMouseReleased(0))
+                {
+                    set_passant(&bit); //pawn is now passantable
                 }
                 return true;
             }
@@ -285,6 +295,10 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
             }
 
+            if(ImGui::IsMouseReleased(0))
+            {
+                clear_passant();
+            }
             return true;
         }
 
@@ -297,6 +311,11 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 {
                     return false;
                 }
+
+                if(ImGui::IsMouseReleased(0))
+                {
+                    set_passant(&bit); //pawn is now passantable
+                }
                 return true;
             }
         }
@@ -308,11 +327,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             if(starting_row + 1 == destination_row) //capture has to happen one row above
             {
 
-                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1) //if pawn is white and piece to capture is black
+                if( (dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1 ) ) //if pawn is white and piece to capture is black
                 {
                     if(ImGui::IsMouseReleased(0))
                     {
                         dst.destroyBit();
+                        clear_passant(); 
 
                         if(destination_row == 8) // queen promotion
                         {
@@ -327,6 +347,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     }
                     return true;
                 }
+
+                if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 0) // en passant
+                {
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        _grid[starting_row - 1][destination_column - 1].destroyBit();
+                        clear_passant();
+                    }
+                    return true;
+                }
             }
 
             //black pawn
@@ -337,6 +367,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     if(ImGui::IsMouseReleased(0))
                     {
                         dst.destroyBit();
+                        clear_passant();
 
                         if(destination_row == 1) // queen promotion
                         {
@@ -347,6 +378,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                             promoted_queen->setGameTag(Queen);
                             dst.setBit(promoted_queen);
                         }
+                    }
+                    return true;
+                }
+
+                if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 1) // en passaant
+                {
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        _grid[starting_row - 1][destination_column - 1].destroyBit();
+                        clear_passant();
                     }
                     return true;
                 }
@@ -462,6 +503,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 dst.destroyBit();
             }
             bit.movedFromStart();
+
+            clear_passant();
         }
         return true;
     }
@@ -513,6 +556,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 {
                 dst.destroyBit();
                 } 
+
+                clear_passant();
             }
             return true;
         }
@@ -533,6 +578,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 {
                     dst.destroyBit();
                 }
+
+                clear_passant();
             }
             return true;
         }
@@ -553,6 +600,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     dst.destroyBit();
                 }
                 bit.movedFromStart();
+
+                clear_passant();
             }
             return true;
         
@@ -578,6 +627,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
                             rook_to_castle->movedFromStart();
                             bit.movedFromStart();
+
+                            clear_passant();
                         }
                         return true;
                     }
@@ -598,6 +649,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
                             rook_to_castle->movedFromStart();
                             bit.movedFromStart();
+
+                            clear_passant();
                         }
                         return true;
                     }
@@ -746,6 +799,8 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
             {
                 dst.destroyBit();
             }
+
+            clear_passant();
         }
         return true;
     }

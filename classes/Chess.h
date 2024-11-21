@@ -40,11 +40,20 @@ public:
     BitHolder& getHolderAt(const int x, const int y) override { return _grid[y][x]; }
 
 	void        updateAI() override;
-    bool        gameHasAI() override { return true; }
+    bool        gameHasAI() override { return true; };
+
+    // en passant functions
+    void       set_passant(Bit* bit) {passantable_pawn = bit;};
+    Bit*       passant_pawn() {return passantable_pawn;} ;
+    void       clear_passant() {passantable_pawn = nullptr; };
+
 private:
     Bit *       PieceForPlayer(const int playerNumber, ChessPiece piece);
     const char  bitToPieceNotation(int row, int column) const;
 
     ChessSquare      _grid[8][8];
+
+    //used for checking en passant
+    Bit* passantable_pawn = nullptr;
 };
 
