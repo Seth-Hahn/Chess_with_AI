@@ -236,7 +236,7 @@ a pawn moving forward two spaces cannot jump over any pieces. Capturing also occ
 directly right or left (and one row forward) of the capturing pawn.
 
 # pawn promotion
-    Promoting a pawn to a queen is a simple check to be added to the existing pawn logic. Simply check if the row that the pawn is moving to is the 8th row (for white pawns) or the 1st row (for black pawns). If this is the case, then destroy the pawn once it moves and create a queen in its place.
+Promoting a pawn to a queen is a simple check to be added to the existing pawn logic. Simply check if the row that the pawn is moving to is the 8th row (for white pawns) or the 1st row (for black pawns). If this is the case, then destroy the pawn once it moves and create a queen in its place.
 
 # rook
 Rooks can only move horizontally or vertically, so the Rook logic checks to make sure that the moving rook ends up in the same column OR row that it was in initially. 
@@ -262,23 +262,22 @@ The king uses absolute values of row and column differences as well. Since the k
 is that both the column and row difference is less than or equal to one, thus it is only moving one square from its starting point. 
 
 # castling
-    Castling can only happen when the column difference is 2 since the king has 
-    to move 2 spaces to complete this move.  The king cannot castle if it has moved from the start, so an if statement check if that is the case.
+Castling can only happen when the column difference is 2 since the king has 
+to move 2 spaces to complete this move.  The king cannot castle if it has moved from the start, so an if statement check if that is the case.
 
-    Once it is determined that the king hasnt moved, the next check is whether it is a queen side castle or king side castle. This is a simple check to see if (destination column - starting column) is positive or negative. positive is a king side castle, negative is queen side. As long as the mouse is released (aka the move is accepted), then a new rook is created from the old one, the old one is destroyed, and the new rook is placed in its proper post-castling position. 
+Once it is determined that the king hasnt moved, the next check is whether it is a queen side castle or king side castle. This is a simple check to see if (destination column - starting column) is positive or negative. positive is a king side castle, negative is queen side. As long as the mouse is released (aka the move is accepted), then a new rook is created from the old one, the old one is destroyed, and the new rook is placed in its proper post-castling position. 
 
 # capturing
 NEW IMPLEMENTATION: The old implementation was buggy and did not allow you to change your mind, if a piece was hovered over that was capturable than it would be captured instantly. A simple change helped solve this, and all that needed to happen was before confirming a move, check if the mouse had been released using the ImGui function ismousereleased(). This solved the previous bugs with capturing and allows the player to change their mind
 
-OLD IMPLEMENTATION: Capturing logic is incredibly simple at this point, though a few more tweaks are planned for it to make it more complex. Currently, if a capturable piece is hovered over by the 
-capturing piece, the piece to capture is instantly destroyed and the spot becomes available for the capturing piece to occupy.
+OLD IMPLEMENTATION: Capturing logic is incredibly simple at this point, though a few more tweaks are planned for it to make it more complex. Currently, if a capturable piece is hovered over by the capturing piece, the piece to capture is instantly destroyed and the spot becomes available for the capturing piece to occupy.
 
 # En Passant
-    Since En Passant can only happen if a pawn has moved forward 2 spaces from the starting position, the set_passant flag is called on any pawn that moves forward twice. This stores the location of a passantable pawn in the chess class, so it can be checked agaisnt later. 
+Since En Passant can only happen if a pawn has moved forward 2 spaces from the starting position, the set_passant flag is called on any pawn that moves forward twice. This stores the location of a passantable pawn in the chess class, so it can be checked agaisnt later. 
     
-    Since pawns are the only piece that can capture via en passant, a simple update needed to be made to the pawn capturing logic. Now, when a pawn tries to move to a square via en passant capture, the piece directly behind the square to move to is checked against the stored passant pawn. If they match, then the en passant is valid and the pawn can capture via en passant. 
+Since pawns are the only piece that can capture via en passant, a simple update needed to be made to the pawn capturing logic. Now, when a pawn tries to move to a square via en passant capture, the piece directly behind the square to move to is checked against the stored passant pawn. If they match, then the en passant is valid and the pawn can capture via en passant. 
 
-    Since en passant can only happen the move immediately after a pawn goes forward 2 spaces. A clear_passant function is called after any move is made so that the en passant cannot happen later on.
+Since en passant can only happen the move immediately after a pawn goes forward two spaces. A clear_passant function is called after any move is made so that the en passant cannot happen later on.
 
 <img width="1269" alt="Screenshot 2024-11-13 at 2 02 41 PM" src="https://github.com/user-attachments/assets/a9811d89-07de-4289-86bf-a510fb2be0a8">
 
