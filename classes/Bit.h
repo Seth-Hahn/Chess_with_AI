@@ -57,6 +57,7 @@ public:
 	// has the piece moved from its original position
 	bool hasMovedFromStart() {return _movedFromStart; };
 	void movedFromStart() {_movedFromStart = true;} ;
+	void notMoved() {_movedFromStart = false;} ;
 
 private:
 	int _restingZ;

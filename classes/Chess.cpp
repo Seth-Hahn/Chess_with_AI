@@ -30,6 +30,174 @@ Bit* Chess::PieceForPlayer(const int playerNumber, ChessPiece piece)
     return bit;
 }
 
+void Chess::FENtoBoard(std::string FEN_string)
+{
+    std::istringstream fenStream(FEN_string); //split out the board position of the FEN string
+    std::string board_representation;         //other parts (ie. castling) can be handled later on
+    fenStream >> board_representation;
+
+    int row = 0;
+    int col = 0;
+
+    for(char c : board_representation) //main board set up
+    {
+        if(c == '/') //transition to next row of the board
+        {
+            row++;
+            col = 0;
+        }
+
+        else if (isdigit(c)) //if c is a digit, then there are that many empty spaces in a row on the board
+        {
+            col += c - '0';
+        }
+
+        else
+        {
+            Bit* piece = nullptr; //create piece for player
+            bool isWhite = isupper(c); //determine whether the piece is white or black
+            int GameTag; 
+            switch(tolower(c)) //determine the appropriate biece and set it
+            {
+                case 'p': 
+                    piece = PieceForPlayer(isWhite ? 0 : 1, Pawn); 
+                    GameTag = Pawn;
+                    break;
+                case 'r': 
+                    piece = PieceForPlayer(isWhite ? 0 : 1, Rook); 
+                    GameTag = Rook;
+                    piece->movedFromStart(); //set to true to set up castling later
+                    break;
+                case 'n': 
+                    piece = PieceForPlayer(isWhite ? 0 : 1, Knight);
+                    GameTag = Knight; 
+                    break;
+                case 'b': 
+                    piece = PieceForPlayer(isWhite? 0 : 1, Bishop);
+                    GameTag = Bishop; 
+                    break;
+                case 'q': 
+                    piece = PieceForPlayer(isWhite ? 0 : 1, Queen);
+                    GameTag = Queen; 
+                    break;
+                case 'k': 
+                    piece = PieceForPlayer(isWhite ? 0 : 1, King); 
+                    GameTag = King;
+                    piece->movedFromStart();
+                    break;
+            }
+
+            if(piece != nullptr)
+            {
+                int boardRow = 7 - row; //flips the board position so black is on top, white on bottom
+                piece->setPosition(_grid[boardRow][col].getPosition());
+                piece->setParent(&_grid[boardRow][col]);
+                piece->setGameTag(GameTag);
+                _grid[boardRow][col].setBit(piece);
+            }
+
+            col++;
+
+        }
+
+    }
+
+    //process the remaining parts of the string if they exist
+    std::string active_player; //player to go next
+    std::string castle_availability; //which castles are possible
+    std::string en_passant; //where en passant is available
+    std::string half_move_clock; //number of moves made since last pawn advance or piece capture
+    std::string full_move_number; //number of turns completed in the game
+
+    //split the remaining fen string into its seperate parts
+    fenStream >> active_player >> castle_availability >> en_passant >> half_move_clock >> full_move_number;
+
+    //set active player
+    if(active_player == "w" || active_player == "b" )
+    {
+        if(active_player == "w") //white turn 
+        {
+            //Turns not implemented yet
+        }
+        
+        else //black turn
+        {
+
+        }
+
+        //castle availability
+        for(char C : castle_availability)
+        {
+            switch(C)
+            {
+                case 'K': //white king side 
+                    _grid[0][4].bit()->notMoved(); 
+                    _grid[0][7].bit()->notMoved(); 
+                    break;
+                
+                case 'Q': //white queen side
+                    _grid[0][4].bit()->notMoved();
+                    _grid[0][0].bit()->notMoved(); 
+                    break;
+
+                case 'k': //black king side
+                    _grid[7][4].bit()->notMoved();
+                    _grid[7][7].bit()->notMoved();
+                    break;
+                
+                case 'q': //black queen side
+                    _grid[7][4].bit()->notMoved();
+                    _grid[7][0].bit()->notMoved();
+                    break;
+
+                case '-':
+                    break;
+            }
+        }
+
+        //en passant targets
+        int column_index = -1;
+        int row_index = -1;
+        for(char c : en_passant) //parse en passant target to get row and column
+        {
+            if(c == '-')
+            {
+                continue;
+            }
+
+            if(isalpha(c))
+            {
+                column_index = c - 'a';
+            }
+
+            else if (isdigit(c))
+            {
+                row_index = c - '1';
+            }
+        }
+
+        //set passantable pawn
+        if(row_index == 3) //white pawn
+        {
+            set_passant(_grid[4][column_index].bit());
+        }
+
+        if(row_index == 6) //black pawn
+        {
+            set_passant(_grid[5][column_index].bit());
+        }
+
+        //half move clock
+        set_half_moves( stoi (half_move_clock) );
+
+        //full move number
+        setCurrentTurnNo( stoi(full_move_number) + 1 ); //sets current turn number to full move number + 1 
+                                                        //full moves is how many moves have been made
+    }                                                   //so the current turn should be one more than that
+    
+    return;
+}
+
 void Chess::setUpBoard()
 {
     setNumberOfPlayers(2);
@@ -50,148 +218,8 @@ void Chess::setUpBoard()
         }
     }
 
+    FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"); 
     
-    for(int player = 0; player < 2; player++) //sets white pieces, then black
-    {
-        for(int i = 0; i < 8; i++) //set up pawns
-        {
-            Bit* pawn_bit = PieceForPlayer(player, Pawn);
-            
-            if(player == 0) //white
-            {
-                pawn_bit->setPosition(_grid[1][i].getPosition());
-                pawn_bit->setParent(&_grid[1][i]);
-                pawn_bit->setGameTag(Pawn);
-                _grid[1][i].setBit(pawn_bit);          
-            }
-
-            if(player == 1) //black
-            {
-                pawn_bit->setPosition(_grid[6][i].getPosition());
-                pawn_bit->setParent(&_grid[6][i]);
-                pawn_bit->setGameTag(Pawn);
-                _grid[6][i].setBit(pawn_bit);
-            }
-
-        }
-
-        for(int i = 0; i < 2; i++) //set non pawns
-        {
-
-
-            Bit* rook_bit = PieceForPlayer(player, Rook); 
-            Bit* knight_bit = PieceForPlayer(player, Knight);
-            Bit* bishop_bit = PieceForPlayer(player, Bishop);
-                  
-            if (player == 0) //white 
-            {
-                if (i == 0) //first rook, knight, and bishop, and queen
-                {
-                    rook_bit->setPosition(_grid[0][0].getPosition());
-                    rook_bit->setParent(&_grid[0][0]);
-                    rook_bit->setGameTag(Rook);
-                    _grid[0][0].setBit(rook_bit);
-
-                    knight_bit->setPosition(_grid[0][1].getPosition());
-                    knight_bit->setParent(&_grid[0][1]);
-                    knight_bit->setGameTag(Knight);
-                    _grid[0][1].setBit(knight_bit);
-
-                    bishop_bit->setPosition(_grid[0][2].getPosition());
-                    bishop_bit->setParent(&_grid[0][2]);
-                    bishop_bit->setGameTag(Bishop);
-                    _grid[0][2].setBit(bishop_bit);
-
-
-                    Bit* queen_bit = PieceForPlayer(player, Queen);
-                    queen_bit->setPosition(_grid[0][3].getPosition());
-                    queen_bit->setParent(&_grid[0][3]);
-                    queen_bit->setGameTag(Queen);
-                    _grid[0][3].setBit(queen_bit);
-
-                }
-
-                if (i == 1) //second rook, knight, and bishop, and king
-                {
-                    rook_bit->setPosition(_grid[0][7].getPosition());
-                    rook_bit->setParent(&_grid[0][7]);
-                    rook_bit->setGameTag(Rook);
-                    _grid[0][7].setBit(rook_bit);
-
-                    knight_bit->setPosition(_grid[0][6].getPosition());
-                    knight_bit->setParent(&_grid[0][6]);
-                    knight_bit->setGameTag(Knight);
-                    _grid[0][6].setBit(knight_bit);
-
-                    bishop_bit->setPosition(_grid[0][5].getPosition());
-                    bishop_bit->setParent(&_grid[0][5]);
-                    bishop_bit->setGameTag(Bishop);
-                    _grid[0][5].setBit(bishop_bit);
-
-                    Bit* king_bit = PieceForPlayer(player, King);
-                    king_bit->setPosition(_grid[0][4].getPosition());
-                    king_bit->setParent(&_grid[0][4]);
-                    king_bit->setGameTag(King);
-                    _grid[0][4].setBit(king_bit);
-                }
-            }
-
-            if (player == 1) //black
-            {
-                if (i == 0) //first rook,knight, and bishop
-                {
-                    rook_bit->setPosition(_grid[7][0].getPosition());
-                    rook_bit->setParent(&_grid[7][0]);
-                    rook_bit->setGameTag(Rook);
-                    _grid[7][0].setBit(rook_bit);
-
-                    knight_bit->setPosition(_grid[7][1].getPosition());
-                    knight_bit->setParent(&_grid[7][1]);
-                    knight_bit->setGameTag(Knight);
-                    _grid[7][1].setBit(knight_bit);
-
-                    bishop_bit->setPosition(_grid[7][2].getPosition());
-                    bishop_bit->setParent(&_grid[7][2]);
-                    bishop_bit->setGameTag(Bishop);
-                    _grid[7][2].setBit(bishop_bit);
-
-                    Bit* queen_bit = PieceForPlayer(player, Queen);
-                    queen_bit->setPosition(_grid[7][3].getPosition());
-                    queen_bit->setParent(&_grid[7][3]);
-                    queen_bit->setGameTag(Queen);
-                    _grid[7][3].setBit(queen_bit);
-                }
-
-                if (i == 1) //second rook, knight, and bishop
-                {
-                    rook_bit->setPosition(_grid[7][7].getPosition());
-                    rook_bit->setParent(&_grid[7][7]);
-                    rook_bit->setGameTag(Rook);
-                    _grid[7][7].setBit(rook_bit);
-
-                    knight_bit->setPosition(_grid[7][6].getPosition());
-                    knight_bit->setParent(&_grid[7][6]);
-                    knight_bit->setGameTag(Knight);
-                    _grid[7][6].setBit(knight_bit);
-
-                    bishop_bit->setPosition(_grid[7][5].getPosition());
-                    bishop_bit->setParent(&_grid[7][5]);
-                    bishop_bit->setGameTag(Bishop);
-                    _grid[7][5].setBit(bishop_bit);
-
-
-                    Bit* king_bit = PieceForPlayer(player, King);
-                    king_bit->setPosition(_grid[7][4].getPosition());
-                    king_bit->setParent(&_grid[7][4]);
-                    king_bit->setGameTag(King);
-                    _grid[7][4].setBit(king_bit);
-                }
-
-            }
-            
-        }
-
-    }
     startGame();
 }
 

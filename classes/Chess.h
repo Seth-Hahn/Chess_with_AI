@@ -25,6 +25,7 @@ public:
 
     // set up the board
     void        setUpBoard() override;
+    void        FENtoBoard(std::string FEN_string); 
 
     Player*     checkForWinner() override;
     bool        checkForDraw() override;
@@ -47,6 +48,10 @@ public:
     Bit*       passant_pawn() {return passantable_pawn;} ;
     void       clear_passant() {passantable_pawn = nullptr; };
 
+    // draw functions
+    void       set_half_moves(int num) {half_moves = num;} ;
+    int        number_of_half_moves() {return half_moves;} ;
+
 private:
     Bit *       PieceForPlayer(const int playerNumber, ChessPiece piece);
     const char  bitToPieceNotation(int row, int column) const;
@@ -55,5 +60,8 @@ private:
 
     //used for checking en passant
     Bit* passantable_pawn = nullptr;
+
+    //used for draws
+    int half_moves;
 };
 

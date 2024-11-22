@@ -106,7 +106,11 @@ public:
 	// function to return pointer to the [][] array of bitholders
 	virtual BitHolder &getHolderAt(const int x, const int y) = 0;
 
+	//functions for turn number and current player
 	const unsigned int getCurrentTurnNo() { return _gameOptions.currentTurnNo; };
+	void setCurrentTurnNo(int turn_number) {_gameOptions.currentTurnNo = turn_number;} ;
+
+
 	const int getScore() { return _gameOptions.score; };
 	void setScore(int score) { _gameOptions.score = score; };
 	// this code below limits class to two players at the most, but it ensures player 0 is white and player 1 is black
