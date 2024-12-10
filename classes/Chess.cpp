@@ -219,7 +219,8 @@ void Chess::setUpBoard()
     }
 
     FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0"); 
-    
+    set_white_king_square(&_grid[0][4]);
+    set_black_king_square(&_grid[7][4]);
     startGame();
 }
 
@@ -236,604 +237,863 @@ bool Chess::canBitMoveFrom(Bit &bit, BitHolder &src)
     return true;
 }
 
+bool Chess::isKingInCheck(int playerNumber) {
+    // Select the correct king's square based on player number
+    BitHolder* kingSquare = (playerNumber == 0) ? White_King_Square : Black_King_Square;
+    
+    if (!kingSquare) return false; // Sanity check
+    
+    // Get king's coordinates 
+    int kingRow = 10 - (kingSquare->getPosition().y / 64);
+    int kingCol = kingSquare->getPosition().x / 64;
+    
+    // Directions to check for attacking pieces
+    // Rook and Queen movements (horizontal and vertical)
+    int rowDirections[4] = {0, 0, 1, -1};
+    int colDirections[4] = {1, -1, 0, 0};
+    
+    // Check rook and queen attacks along horizontal and vertical lines
+    for (int i = 0; i < 4; ++i) {
+        int currentRow = kingRow;
+        int currentCol = kingCol;
+        
+        while (true) {
+            currentRow += rowDirections[i];
+            currentCol += colDirections[i];
+            
+            // Break if out of board bounds
+            if (currentRow < 1 || currentRow > 8 || currentCol < 1 || currentCol > 8) 
+                break;
+            
+            BitHolder& checkSquare = _grid[currentRow - 1][currentCol - 1];
+            
+            // If square is not empty
+            if (!checkSquare.empty()) {
+                Bit* piece = checkSquare.bit();
+                
+                // Check for rook or queen of opposite color
+                if (piece->getOwner()->playerNumber() != playerNumber) {
+                    if (piece->gameTag() == Rook || piece->gameTag() == Queen) {
+                        return true;
+                    }
+                }
+                
+                // Stop scanning this direction if a piece is found
+                break;
+            }
+        }
+    }
+    
+    // Diagonal directions for bishop and queen
+    int diagRowDirections[4] = {1, 1, -1, -1};
+    int diagColDirections[4] = {1, -1, 1, -1};
+    
+    // Check bishop and queen attacks along diagonals
+    for (int i = 0; i < 4; ++i) {
+        int currentRow = kingRow;
+        int currentCol = kingCol;
+        
+        while (true) {
+            currentRow += diagRowDirections[i];
+            currentCol += diagColDirections[i];
+            
+            // Break if out of board bounds
+            if (currentRow < 1 || currentRow > 8 || currentCol < 1 || currentCol > 8) 
+                break;
+            
+            BitHolder& checkSquare = _grid[currentRow - 1][currentCol - 1];
+            
+            // If square is not empty
+            if (!checkSquare.empty()) {
+                Bit* piece = checkSquare.bit();
+                
+                // Check for bishop or queen of opposite color
+                if (piece->getOwner()->playerNumber() != playerNumber) {
+                    if (piece->gameTag() == Bishop || piece->gameTag() == Queen) {
+                        return true;
+                    }
+                }
+                
+                // Stop scanning this direction if a piece is found
+                break;
+            }
+        }
+    }
+    
+    // Knight check
+    int knightMoves[8][2] = {
+        {2, 1}, {2, -1}, {-2, 1}, {-2, -1},
+        {1, 2}, {1, -2}, {-1, 2}, {-1, -2}
+    };
+    
+    for (auto& move : knightMoves) {
+        int checkRow = kingRow + move[0];
+        int checkCol = kingCol + move[1];
+        
+        // Check if knight move is within board
+        if (checkRow >= 1 && checkRow <= 8 && checkCol >= 1 && checkCol <= 8) {
+            BitHolder& checkSquare = _grid[checkRow - 1][checkCol - 1];
+            
+            if (!checkSquare.empty()) {
+                Bit* piece = checkSquare.bit();
+                
+                // Check for knight of opposite color
+                if (piece->getOwner()->playerNumber() != playerNumber && 
+                    piece->gameTag() == Knight) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    // Pawn check (different for white and black)
+    int pawnRowDirection = (playerNumber == 0) ? -1 : 1;
+    int pawnCheckRows[2] = {kingRow + pawnRowDirection, kingRow + pawnRowDirection};
+    int pawnCheckCols[2] = {kingCol - 1, kingCol + 1};
+    
+    for (int i = 0; i < 2; ++i) {
+        int checkRow = pawnCheckRows[0];
+        int checkCol = pawnCheckCols[i];
+        
+        // Check if pawn move is within board
+        if (checkRow >= 1 && checkRow <= 8 && checkCol >= 1 && checkCol <= 8) {
+            BitHolder& checkSquare = _grid[checkRow - 1][checkCol - 1];
+            
+            if (!checkSquare.empty()) {
+                Bit* piece = checkSquare.bit();
+                
+                // Check for pawn of opposite color
+                if (piece->getOwner()->playerNumber() != playerNumber && 
+                    piece->gameTag() == Pawn) {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    // No check found
+    return false;
+}
 
+bool Chess::doesMoveResolveCheck(Bit& bit, BitHolder& src, BitHolder& dst) 
+{   
+    Bit* originalDstPiece = nullptr;
+    if(dst.bit() != nullptr)
+    {
+        originalDstPiece = dst.bit();
+    }
+    Bit* movingPiece = &bit;
+
+    src.clearBit();
+    dst.clearBit();
+    dst.setBit(movingPiece) ;
+
+    bool stillInCheck = isKingInCheck(getCurrentPlayer()->playerNumber());
+
+    dst.clearBit();
+    dst.setBit(originalDstPiece);
+    src.setBit(movingPiece);
+
+    return !stillInCheck;
+}
+
+//TODO: fix kings being able to move and still be in check
+//the rest of check resolution works as intended, kings work
+//almost correct but can still be moved into a check spot on occasion 
 bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 {
-    //initial position of piece
-    int starting_column = src.getPosition().x / 64; //divide by 64 to get index from 1-8
-    int starting_row = 10 - (src.getPosition().y /64); //divide by 64, then subtract the result from 10 to get 1-8 index
-
-    //destination for piece
-    int destination_column = dst.getPosition().x / 64;
-    int  destination_row = 10 - (dst.getPosition().y /64);
-
-
-    if(starting_column == destination_column && starting_row == destination_row) //can set pieces back down in their original spot
+    if(bit.getOwner()->playerNumber() == getCurrentPlayer()->playerNumber())
     {
-        return true;
-    }
-    if(bit.gameTag() == Pawn)
-    {
-        //white pawn can move forward one 
-        if (destination_row == starting_row + 1 && destination_column == starting_column)
+        bool check = isKingInCheck(getCurrentPlayer()->playerNumber()); //if the king is in check, the check must be resolved
+     
+        //initial position of piece
+        int starting_column = src.getPosition().x / 64; //divide by 64 to get index from 1-8
+        int starting_row = 10 - (src.getPosition().y /64); //divide by 64, then subtract the result from 10 to get 1-8 index
+
+        //destination for piece
+        int destination_column = dst.getPosition().x / 64;
+        int  destination_row = 10 - (dst.getPosition().y /64);
+
+
+        if(starting_column == destination_column && starting_row == destination_row) //can set pieces back down in their original spot
         {
-            if(!dst.empty() || bit.getOwner()->playerNumber() == 1) //cant move to a non-empty spot
-            {
-                return false;
-            }
-
-            if(destination_row == 8) //queen promotion
-            {
-                if(ImGui::IsMouseReleased(0))
-                {
-                    Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
-                    bit.~Bit(); //destroy the pawn
-
-                    promoted_queen->setPosition(dst.getPosition());
-                    promoted_queen->setGameTag(Queen);
-                    dst.setBit(promoted_queen);
-                }
-
-            }
-
-            if(ImGui::IsMouseReleased(0))
-            {
-                clear_passant();
-            }
             return true;
         }
-
-        //white pawn can move forward 2 in the starting row
-        if(starting_row == 2 && bit.getOwner()->playerNumber() == 0)
+        if(bit.gameTag() == Pawn)
         {
-            if(destination_row == starting_row + 2 && destination_column == starting_column)
+            //white pawn can move forward one 
+            if (destination_row == starting_row + 1 && destination_column == starting_column)
             {
-                if(!dst.empty() ||!_grid[destination_row - 2][destination_column-1].empty()) //cant move to an occupied spot or jump a piece to move forward 2
+                if(!dst.empty() || bit.getOwner()->playerNumber() == 1) //cant move to a non-empty spot
+                {
+                    return false;
+                }
+
+
+                if(destination_row == 8) //queen promotion
+                {
+                    
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                        bit.~Bit(); //destroy the pawn
+
+                        promoted_queen->setPosition(dst.getPosition());
+                        promoted_queen->setGameTag(Queen);
+                        dst.setBit(promoted_queen);
+                    }
+
+                }
+
+                if(!doesMoveResolveCheck(bit, src, dst))
                 {
                     return false;
                 }
 
                 if(ImGui::IsMouseReleased(0))
                 {
-                    set_passant(&bit); //pawn is now passantable
+                    clear_passant();
+                    endTurn();
                 }
                 return true;
             }
-        }
 
-        //black pawn can move forward one
-        if (destination_row == starting_row - 1 && destination_column == starting_column)
-        {
-            if(!dst.empty() || bit.getOwner()->playerNumber() == 0) //cant move to a non-empty spot
+            //white pawn can move forward 2 in the starting row
+            if(starting_row == 2 && bit.getOwner()->playerNumber() == 0)
             {
-                return false;
+                if(destination_row == starting_row + 2 && destination_column == starting_column)
+                {
+                    if(!dst.empty() ||!_grid[destination_row - 2][destination_column-1].empty()) //cant move to an occupied spot or jump a piece to move forward 2
+                    {
+                        return false;
+                    }
+
+                    if(!doesMoveResolveCheck(bit, src, dst))
+                    {
+                        return false;
+                    }
+
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        set_passant(&bit); //pawn is now passantable
+                        endTurn();
+                    }
+                    return true;
+                }
             }
 
-            if(destination_row == 1) //queen promotion
+            //black pawn can move forward one
+            if (destination_row == starting_row - 1 && destination_column == starting_column)
             {
-                if(ImGui::IsMouseReleased(0))
+                if(!dst.empty() || bit.getOwner()->playerNumber() == 0) //cant move to a non-empty spot
                 {
-                    Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
-                    bit.~Bit(); //destroy the pawn
-
-                    promoted_queen->setPosition(dst.getPosition());
-                    promoted_queen->setGameTag(Queen);
-                    dst.setBit(promoted_queen);
+                    return false;
                 }
 
-            }
+                if(destination_row == 1) //queen promotion
+                {
+                    if(ImGui::IsMouseReleased(0))
+                    {
+                        Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                        bit.~Bit(); //destroy the pawn
 
-            if(ImGui::IsMouseReleased(0))
-            {
-                clear_passant();
-            }
-            return true;
-        }
+                        promoted_queen->setPosition(dst.getPosition());
+                        promoted_queen->setGameTag(Queen);
+                        dst.setBit(promoted_queen);
+                    }
 
-        //black pawn can move forward 2 from starting row
-        if(starting_row == 7 && bit.getOwner()->playerNumber() == 1)
-        {
-            if(destination_row == starting_row - 2 && destination_column == starting_column)
-            {
-                if(!dst.empty() || !_grid[destination_row][destination_column - 1].empty())
+                }
+                
+                if(!doesMoveResolveCheck(bit, src, dst))
                 {
                     return false;
                 }
 
                 if(ImGui::IsMouseReleased(0))
                 {
-                    set_passant(&bit); //pawn is now passantable
+                    clear_passant();
+                    endTurn();
                 }
                 return true;
             }
-        }
 
-        //pawn can capture
-        if(starting_column + 1 == destination_column || starting_column - 1 == destination_column) // capturing can happen either left of right
-        {
-            //white pawn
-            if(starting_row + 1 == destination_row) //capture has to happen one row above
+            //black pawn can move forward 2 from starting row
+            if(starting_row == 7 && bit.getOwner()->playerNumber() == 1)
             {
-
-                if( (dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1 ) ) //if pawn is white and piece to capture is black
+                if(destination_row == starting_row - 2 && destination_column == starting_column)
                 {
-                    if(ImGui::IsMouseReleased(0))
+                    if(!dst.empty() || !_grid[destination_row][destination_column - 1].empty())
                     {
-                        dst.destroyBit();
-                        clear_passant(); 
-
-                        if(destination_row == 8) // queen promotion
-                        {
-                            Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
-                            bit.~Bit(); //destroy the pawn
-
-                            promoted_queen->setPosition(dst.getPosition());
-                            promoted_queen->setGameTag(Queen);
-                            dst.setBit(promoted_queen);
-                        }
-                        
+                        return false;
                     }
-                    return true;
-                }
+                    
+                    if(!doesMoveResolveCheck(bit, src, dst))
+                    {
+                        return false;
+                    }
 
-                if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 0) // en passant
-                {
                     if(ImGui::IsMouseReleased(0))
                     {
-                        _grid[starting_row - 1][destination_column - 1].destroyBit();
-                        clear_passant();
+                        set_passant(&bit); //pawn is now passantable
+                        endTurn();
                     }
                     return true;
                 }
             }
 
-            //black pawn
-            if(starting_row - 1 == destination_row) //capture has to happen one row below
+            //pawn can capture
+            if(starting_column + 1 == destination_column || starting_column - 1 == destination_column) // capturing can happen either left of right
             {
-                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 0)
+                //white pawn
+                if(starting_row + 1 == destination_row) //capture has to happen one row above
                 {
-                    if(ImGui::IsMouseReleased(0))
+
+                    if( (dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1 ) ) //if pawn is white and piece to capture is black
                     {
-                        dst.destroyBit();
-                        clear_passant();
-
-                        if(destination_row == 1) // queen promotion
+                        if(!doesMoveResolveCheck(bit, src, dst))
                         {
-                            Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
-                            bit.~Bit(); //destroy the pawn
-
-                            promoted_queen->setPosition(dst.getPosition());
-                            promoted_queen->setGameTag(Queen);
-                            dst.setBit(promoted_queen);
+                            return false;
                         }
+
+                        if(ImGui::IsMouseReleased(0))
+                        {
+                            dst.destroyBit();
+                            clear_passant(); 
+                            endTurn();
+
+                            if(destination_row == 8) // queen promotion
+                            {
+                                Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                                bit.~Bit(); //destroy the pawn
+
+                                promoted_queen->setPosition(dst.getPosition());
+                                promoted_queen->setGameTag(Queen);
+                                dst.setBit(promoted_queen);
+                            }
+                            
+                        }
+                        return true;
                     }
-                    return true;
+
+                    if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 0) // en passant
+                    {
+                        if(!doesMoveResolveCheck(bit, src, dst))
+                        {
+                            return false;
+                        }
+
+                        if(ImGui::IsMouseReleased(0))
+                        {
+                            _grid[starting_row - 1][destination_column - 1].destroyBit();
+                            clear_passant();
+                            endTurn();
+                        }
+                        return true;
+                    }
                 }
 
-                if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 1) // en passaant
+                //black pawn
+                if(starting_row - 1 == destination_row) //capture has to happen one row below
                 {
-                    if(ImGui::IsMouseReleased(0))
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 0)
                     {
-                        _grid[starting_row - 1][destination_column - 1].destroyBit();
-                        clear_passant();
+                        if(!doesMoveResolveCheck(bit, src, dst))
+                        {
+                            return false;
+                        }
+
+                        if(ImGui::IsMouseReleased(0))
+                        {
+                            dst.destroyBit();
+                            clear_passant();
+                            endTurn();
+
+                            if(destination_row == 1) // queen promotion
+                            {
+                                Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
+                                bit.~Bit(); //destroy the pawn
+
+                                promoted_queen->setPosition(dst.getPosition());
+                                promoted_queen->setGameTag(Queen);
+                                dst.setBit(promoted_queen);
+                            }
+                        }
+                        return true;
                     }
-                    return true;
+
+                    if(_grid[starting_row - 1][destination_column - 1].bit() == passant_pawn() && bit.getOwner()->playerNumber() == 1) // en passaant
+                    {
+                        if(!doesMoveResolveCheck(bit, src, dst))
+                        {
+                            return false;
+                        }
+
+                        if(ImGui::IsMouseReleased(0))
+                        {
+                            _grid[starting_row - 1][destination_column - 1].destroyBit();
+                            clear_passant();
+                            endTurn();
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
+        if(bit.gameTag() == Rook)
+        {
+            if(starting_column == destination_column || starting_row == destination_row) //rooks can move vertically or horizontally
+            {
+                if(starting_column == destination_column) //vertical movement
+                {
+                    if(starting_row < destination_row) //upwards movement
+                    {
+                        int row_index_of_blocking_piece = 9; //set to an out of bounds value initially
+
+                        for(int row_index = starting_row; row_index < destination_row; row_index++) //look for a piece in the path to the destination
+                        {
+                            if(_grid[row_index - 1][destination_column-1].bit()!= nullptr) //checks if a piece is present
+                            {
+                                if(starting_row == row_index) //ensures that the rook itself isnt considered a piece thats in the way
+                                {
+                                    continue;
+                                }
+                                row_index_of_blocking_piece = row_index;
+                            }
+                        }
+                        if(destination_row > row_index_of_blocking_piece) //if the destination is above the blocking piece, dont let it move past
+                        {
+                            return false;
+                        }
+                    }
+
+                    if(starting_row > destination_row) //downwards movement
+                    {
+                        int row_index_of_blocking_piece = -1;
+
+                        for(int row_index = starting_row; row_index > destination_row; row_index-- )
+                        {
+                            if(_grid[row_index - 1][destination_column-1].bit()!= nullptr) //checks if a piece is present
+                            {
+                                if(starting_row == row_index) //ensures that the rook itself isnt considered a piece thats in the way
+                                {
+                                    continue;
+                                }
+                                row_index_of_blocking_piece = row_index;
+                            }
+                        }
+                        if(destination_row < row_index_of_blocking_piece)
+                        {
+                            return false;
+                        }
+                    }
+                }
+
+                
+
+                if(starting_row == destination_row) //horizontal movement
+                {
+                    if(starting_column < destination_column) //moving right 
+                    {
+                        int column_index_of_blocking_piece = 9;
+
+                        for(int col_index = starting_column; col_index < destination_column; col_index++)
+                        {
+                            if(_grid[destination_row-1][col_index-1].bit()!=nullptr) //check for present piece of same color
+                            {
+                                if(starting_column == col_index) //esnures taht the rook itself isnt considered in the way
+                                {
+                                    continue;
+                                }
+                                column_index_of_blocking_piece = col_index;
+                            }
+                        }
+                        if(destination_column > column_index_of_blocking_piece)
+                        {
+                            return false;
+                        }
+
+                    }
+
+                    if(starting_column > destination_column) //moving left
+                    {
+                        int column_index_of_blocking_piece = 0;
+
+                        for(int col_index = starting_column; col_index > destination_column; col_index--)
+                        {
+                            if(_grid[destination_row-1][col_index-1].bit()!=nullptr) //check for present piece of same color
+                            {
+                                if(starting_column == col_index) //esnures taht the rook itself isnt considered in the way
+                                {
+                                    continue;
+                                }
+                                column_index_of_blocking_piece = col_index;
+                            }
+                        }
+                        if(destination_column < column_index_of_blocking_piece)
+                        {
+                            return false;
+                        }
+
+                    }
+                }
+            }
+            if(starting_row == destination_row || starting_column == destination_column)
+            {
+                if(!doesMoveResolveCheck(bit, src, dst))
+                {
+                    return false;
+                }
+
+                if(ImGui::IsMouseReleased(0))
+                {
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                    {
+                        dst.destroyBit();
+                    }
+                    bit.movedFromStart();
+
+                    clear_passant();
+                    endTurn();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        if(bit.gameTag() == Bishop)
+        {
+            int row_difference = abs(destination_row - starting_row);
+            int column_difference = abs(destination_column - starting_column);
+
+            if(row_difference == column_difference) //if the move is diagonal
+            {
+                int row_step = (destination_row > starting_row) ? 1 : -1; //direction of row movement
+                int col_step = (destination_column > starting_column) ? 1 : -1; //direction of column movement
+
+                int row_index_of_blocking_piece = 9; //set to an out of bounds value
+                int column_index_of_blocking_piece = 9; //set to an out of bounds value 
+
+                int current_row = starting_row + row_step;
+                int current_column = starting_column + col_step;
+
+                while(current_row != destination_row && current_column != destination_column) //check all squares along diagonal path
+                {
+                    if(_grid[current_row - 1][current_column -1].bit() != nullptr) //check if a piece is present
+                    {
+                        //hold index of blocking piece
+                        row_index_of_blocking_piece = current_row;
+                        column_index_of_blocking_piece = current_column;
+                        break; 
+                    }
+
+                    current_column += col_step;
+                    current_row += row_step;
+                }
+
+                if (row_index_of_blocking_piece != 9 && column_index_of_blocking_piece != 9 && //only checks for blocking pieces if one is found
+                ((destination_row > row_index_of_blocking_piece && row_step > 0) ||            //if a blocking piece is found, this ensures that 
+                (destination_row < row_index_of_blocking_piece && row_step < 0) ||            //the bishop cannot jump pieces along any diagonal
+                (destination_column > column_index_of_blocking_piece && col_step > 0) ||
+                (destination_column < column_index_of_blocking_piece && col_step < 0)))
+                {
+                    return false;
+                }
+
+                if(!doesMoveResolveCheck(bit, src, dst))
+                {
+                    return false;
+                }
+
+                if(ImGui::IsMouseReleased(0))
+                {
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                    {
+                    dst.destroyBit();
+                    } 
+
+                    clear_passant();
+                    endTurn();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        if(bit.gameTag() == Knight)
+        {
+            int row_difference = abs(destination_row - starting_row);
+            int column_difference = abs(destination_column - starting_column);
+
+            if( (row_difference == 2 && column_difference == 1) || //l shaped movement checks
+                (row_difference == 1 && column_difference == 2) )
+            {
+                if(!doesMoveResolveCheck(bit, src, dst))
+                {
+                    return false;
+                }
+                if(ImGui::IsMouseReleased(0))
+                {
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                    {
+                        dst.destroyBit();
+                    }
+
+                    clear_passant();
+                    endTurn();
+                }
+                return true;
+            }
+            return false;
+        }
+
+        if(bit.gameTag() == King)
+        {
+            int row_difference = abs(destination_row - starting_row);
+            int column_difference = abs(destination_column - starting_column);
+
+            if(row_difference <= 1 && column_difference <= 1) //only can move one square in any direction
+            {
+                if(doesMoveResolveCheck(bit, src, dst))
+                {
+                    return false;
+                }
+
+                if(ImGui::IsMouseReleased(0))
+                {
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
+                    {
+                        dst.destroyBit();
+                    }
+                    bit.movedFromStart();
+                    getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
+                    clear_passant();
+                    endTurn();
+                }
+                return true;
+            
+            }
+
+            //castling 
+            if(starting_row == destination_row && column_difference == 2) //valid castling squares for king
+            {
+                if(!bit.hasMovedFromStart()) //cannot castle if king has moved
+                {
+                    if(destination_column - starting_column > 0) //castling to right
+                    {
+                        if(!_grid[starting_row - 1][7].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
+                        {
+                            if(doesMoveResolveCheck(bit, src, dst))
+                            {
+                                return false;
+                            }
+
+                            if(ImGui::IsMouseReleased(0))
+                            {
+                                Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][7].bit()); //create a new rook to castle with
+
+                                _grid[starting_row - 1][7].destroyBit(); //remove the old rook
+
+                                rook_to_castle->setPosition(_grid[starting_row - 1][5].getPosition());
+                                _grid[starting_row - 1][5].setBit(rook_to_castle);
+
+                                rook_to_castle->movedFromStart();
+                                bit.movedFromStart();
+                                getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
+                                clear_passant();
+                                endTurn();
+                            }
+                            return true;
+                        }
+                    }
+
+                    if(destination_column - starting_column < 0) //castling to left
+                    {
+                        if(!_grid[starting_row - 1][0].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
+                        {
+                            if(doesMoveResolveCheck(bit, src, dst))
+                            {
+                                return false;
+                            }
+
+                            if(ImGui::IsMouseReleased(0))
+                            { 
+                                Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][0].bit()); //create a new rook to castle with
+
+                                _grid[starting_row - 1][0].destroyBit(); //remove the old rook
+
+                                rook_to_castle->setPosition(_grid[starting_row - 1][3].getPosition());
+                                _grid[starting_row - 1][3].setBit(rook_to_castle);
+
+                                rook_to_castle->movedFromStart();
+                                bit.movedFromStart();
+                                getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
+                                clear_passant();
+                                endTurn();
+                            }
+                            return true;
+                        }
+                    }
                 }
             }
             return false;
         }
-    }
 
-    if(bit.gameTag() == Rook)
-    {
-        if(starting_column == destination_column || starting_row == destination_row) //rooks can move vertically or horizontally
+        if(bit.gameTag() == Queen)
         {
-            if(starting_column == destination_column) //vertical movement
-            {
-                if(starting_row < destination_row) //upwards movement
-                {
-                    int row_index_of_blocking_piece = 9; //set to an out of bounds value initially
+            int row_difference = abs(destination_row - starting_row);
+            int column_difference = abs(destination_column - starting_column);
 
-                    for(int row_index = starting_row; row_index < destination_row; row_index++) //look for a piece in the path to the destination
+            // Queen can move either like a rook (same row or column) or like a bishop (diagonally)
+            if((starting_row == destination_row || starting_column == destination_column) || // rook movement
+            (row_difference == column_difference)) // bishop movement
+            {
+                if(starting_column == destination_column) // vertical movement 
+                {
+                    if(starting_row < destination_row) // upwards movement
                     {
-                        if(_grid[row_index - 1][destination_column-1].bit()!= nullptr) //checks if a piece is present
+                        int row_index_of_blocking_piece = 9;
+
+                        for(int row_index = starting_row; row_index < destination_row; row_index++)
                         {
-                            if(starting_row == row_index) //ensures that the rook itself isnt considered a piece thats in the way
+                            if(_grid[row_index - 1][destination_column-1].bit() != nullptr)
                             {
-                                continue;
+                                if(starting_row == row_index)
+                                {
+                                    continue;
+                                }
+                                row_index_of_blocking_piece = row_index;
                             }
-                            row_index_of_blocking_piece = row_index;
+                        }
+                        if(destination_row > row_index_of_blocking_piece)
+                        {
+                            return false;
                         }
                     }
-                    if(destination_row > row_index_of_blocking_piece) //if the destination is above the blocking piece, dont let it move past
+
+                    if(starting_row > destination_row) // downwards movement
                     {
-                        return false;
+                        int row_index_of_blocking_piece = -1;
+
+                        for(int row_index = starting_row; row_index > destination_row; row_index--)
+                        {
+                            if(_grid[row_index - 1][destination_column-1].bit() != nullptr)
+                            {
+                                if(starting_row == row_index)
+                                {
+                                    continue;
+                                }
+                                row_index_of_blocking_piece = row_index;
+                            }
+                        }
+                        if(destination_row < row_index_of_blocking_piece)
+                        {
+                            return false;
+                        }
                     }
                 }
 
-                if(starting_row > destination_row) //downwards movement
+                if(starting_row == destination_row) // horizontal movement 
                 {
-                    int row_index_of_blocking_piece = -1;
-
-                    for(int row_index = starting_row; row_index > destination_row; row_index-- )
+                    if(starting_column < destination_column) // moving right
                     {
-                        if(_grid[row_index - 1][destination_column-1].bit()!= nullptr) //checks if a piece is present
+                        int column_index_of_blocking_piece = 9;
+
+                        for(int col_index = starting_column; col_index < destination_column; col_index++)
                         {
-                            if(starting_row == row_index) //ensures that the rook itself isnt considered a piece thats in the way
+                            if(_grid[destination_row-1][col_index-1].bit() != nullptr)
                             {
-                                continue;
+                                if(starting_column == col_index)
+                                {
+                                    continue;
+                                }
+                                column_index_of_blocking_piece = col_index;
                             }
-                            row_index_of_blocking_piece = row_index;
+                        }
+                        if(destination_column > column_index_of_blocking_piece)
+                        {
+                            return false;
                         }
                     }
-                    if(destination_row < row_index_of_blocking_piece)
+
+                    if(starting_column > destination_column) // moving left
                     {
-                        return false;
+                        int column_index_of_blocking_piece = 0;
+
+                        for(int col_index = starting_column; col_index > destination_column; col_index--)
+                        {
+                            if(_grid[destination_row-1][col_index-1].bit() != nullptr)
+                            {
+                                if(starting_column == col_index)
+                                {
+                                    continue;
+                                }
+                                column_index_of_blocking_piece = col_index;
+                            }
+                        }
+                        if(destination_column < column_index_of_blocking_piece)
+                        {
+                            return false;
+                        }
                     }
                 }
-            }
 
-            
-
-            if(starting_row == destination_row) //horizontal movement
-            {
-                if(starting_column < destination_column) //moving right 
+                if(row_difference == column_difference) // diagonal movement 
                 {
+                    int row_step = (destination_row > starting_row) ? 1 : -1;
+                    int col_step = (destination_column > starting_column) ? 1 : -1;
+
+                    int row_index_of_blocking_piece = 9;
                     int column_index_of_blocking_piece = 9;
 
-                    for(int col_index = starting_column; col_index < destination_column; col_index++)
+                    int current_row = starting_row + row_step;
+                    int current_column = starting_column + col_step;
+
+                    while(current_row != destination_row && current_column != destination_column)
                     {
-                        if(_grid[destination_row-1][col_index-1].bit()!=nullptr) //check for present piece of same color
+                        if(_grid[current_row - 1][current_column - 1].bit() != nullptr)
                         {
-                            if(starting_column == col_index) //esnures taht the rook itself isnt considered in the way
-                            {
-                                continue;
-                            }
-                            column_index_of_blocking_piece = col_index;
+                            row_index_of_blocking_piece = current_row;
+                            column_index_of_blocking_piece = current_column;
+                            break;
                         }
+
+                        current_column += col_step;
+                        current_row += row_step;
                     }
-                    if(destination_column > column_index_of_blocking_piece)
+
+                    if (row_index_of_blocking_piece != 9 && column_index_of_blocking_piece != 9 &&
+                        ((destination_row > row_index_of_blocking_piece && row_step > 0) ||
+                        (destination_row < row_index_of_blocking_piece && row_step < 0) ||
+                        (destination_column > column_index_of_blocking_piece && col_step > 0) ||
+                        (destination_column < column_index_of_blocking_piece && col_step < 0)))
                     {
                         return false;
                     }
-
                 }
 
-                if(starting_column > destination_column) //moving left
+                if(!doesMoveResolveCheck(bit, src, dst))
                 {
-                    int column_index_of_blocking_piece = 0;
+                    return false;
+                }
 
-                    for(int col_index = starting_column; col_index > destination_column; col_index--)
+                if(ImGui::IsMouseReleased(0))
+                { 
+                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
                     {
-                        if(_grid[destination_row-1][col_index-1].bit()!=nullptr) //check for present piece of same color
-                        {
-                            if(starting_column == col_index) //esnures taht the rook itself isnt considered in the way
-                            {
-                                continue;
-                            }
-                            column_index_of_blocking_piece = col_index;
-                        }
-                    }
-                    if(destination_column < column_index_of_blocking_piece)
-                    {
-                        return false;
+                        dst.destroyBit();
                     }
 
+                    clear_passant();
+                    endTurn();
                 }
+                return true;
             }
-        }
-    if(starting_row == destination_row || starting_column == destination_column)
-    {
-        if(ImGui::IsMouseReleased(0))
-        {
-            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
-            {
-                dst.destroyBit();
-            }
-            bit.movedFromStart();
-
-            clear_passant();
-        }
-        return true;
-    }
-    return false;
-    }
-
-    if(bit.gameTag() == Bishop)
-    {
-        int row_difference = abs(destination_row - starting_row);
-        int column_difference = abs(destination_column - starting_column);
-
-        if(row_difference == column_difference) //if the move is diagonal
-        {
-            int row_step = (destination_row > starting_row) ? 1 : -1; //direction of row movement
-            int col_step = (destination_column > starting_column) ? 1 : -1; //direction of column movement
-
-            int row_index_of_blocking_piece = 9; //set to an out of bounds value
-            int column_index_of_blocking_piece = 9; //set to an out of bounds value 
-
-            int current_row = starting_row + row_step;
-            int current_column = starting_column + col_step;
-
-            while(current_row != destination_row && current_column != destination_column) //check all squares along diagonal path
-            {
-                if(_grid[current_row - 1][current_column -1].bit() != nullptr) //check if a piece is present
-                {
-                    //hold index of blocking piece
-                    row_index_of_blocking_piece = current_row;
-                    column_index_of_blocking_piece = current_column;
-                    break; 
-                }
-
-                current_column += col_step;
-                current_row += row_step;
-            }
-
-            if (row_index_of_blocking_piece != 9 && column_index_of_blocking_piece != 9 && //only checks for blocking pieces if one is found
-            ((destination_row > row_index_of_blocking_piece && row_step > 0) ||            //if a blocking piece is found, this ensures that 
-             (destination_row < row_index_of_blocking_piece && row_step < 0) ||            //the bishop cannot jump pieces along any diagonal
-             (destination_column > column_index_of_blocking_piece && col_step > 0) ||
-             (destination_column < column_index_of_blocking_piece && col_step < 0)))
-            {
-                return false;
-            }
-
-            if(ImGui::IsMouseReleased(0))
-            {
-                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
-                {
-                dst.destroyBit();
-                } 
-
-                clear_passant();
-            }
-            return true;
+            return false;
         }
         return false;
     }
-
-    if(bit.gameTag() == Knight)
-    {
-        int row_difference = abs(destination_row - starting_row);
-        int column_difference = abs(destination_column - starting_column);
-
-        if( (row_difference == 2 && column_difference == 1) || //l shaped movement checks
-            (row_difference == 1 && column_difference == 2) )
-        {
-            if(ImGui::IsMouseReleased(0))
-            {
-                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
-                {
-                    dst.destroyBit();
-                }
-
-                clear_passant();
-            }
-            return true;
-        }
-        return false;
-    }
-
-    if(bit.gameTag() == King)
-    {
-        int row_difference = abs(destination_row - starting_row);
-        int column_difference = abs(destination_column - starting_column);
-
-        if(row_difference <= 1 && column_difference <= 1) //only can move one square in any direction
-        {
-            if(ImGui::IsMouseReleased(0))
-            {
-                if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
-                {
-                    dst.destroyBit();
-                }
-                bit.movedFromStart();
-
-                clear_passant();
-            }
-            return true;
-        
-        }
-
-        //castling 
-        if(starting_row == destination_row && column_difference == 2) //valid castling squares for king
-        {
-            if(!bit.hasMovedFromStart()) //cannot castle if king has moved
-            {
-                if(destination_column - starting_column > 0) //castling to right
-                {
-                    if(!_grid[starting_row - 1][7].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
-                    {
-                        if(ImGui::IsMouseReleased(0))
-                        {
-                            Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][7].bit()); //create a new rook to castle with
-
-                            _grid[starting_row - 1][7].destroyBit(); //remove the old rook
-
-                            rook_to_castle->setPosition(_grid[starting_row - 1][5].getPosition());
-                            _grid[starting_row - 1][5].setBit(rook_to_castle);
-
-                            rook_to_castle->movedFromStart();
-                            bit.movedFromStart();
-
-                            clear_passant();
-                        }
-                        return true;
-                    }
-                }
-
-                if(destination_column - starting_column < 0) //castling to left
-                {
-                    if(!_grid[starting_row - 1][0].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
-                    {
-                        if(ImGui::IsMouseReleased(0))
-                        { 
-                            Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][0].bit()); //create a new rook to castle with
-
-                            _grid[starting_row - 1][0].destroyBit(); //remove the old rook
-
-                            rook_to_castle->setPosition(_grid[starting_row - 1][3].getPosition());
-                            _grid[starting_row - 1][3].setBit(rook_to_castle);
-
-                            rook_to_castle->movedFromStart();
-                            bit.movedFromStart();
-
-                            clear_passant();
-                        }
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    if(bit.gameTag() == Queen)
-{
-    int row_difference = abs(destination_row - starting_row);
-    int column_difference = abs(destination_column - starting_column);
-
-    // Queen can move either like a rook (same row or column) or like a bishop (diagonally)
-    if((starting_row == destination_row || starting_column == destination_column) || // rook movement
-       (row_difference == column_difference)) // bishop movement
-    {
-        if(starting_column == destination_column) // vertical movement 
-        {
-            if(starting_row < destination_row) // upwards movement
-            {
-                int row_index_of_blocking_piece = 9;
-
-                for(int row_index = starting_row; row_index < destination_row; row_index++)
-                {
-                    if(_grid[row_index - 1][destination_column-1].bit() != nullptr)
-                    {
-                        if(starting_row == row_index)
-                        {
-                            continue;
-                        }
-                        row_index_of_blocking_piece = row_index;
-                    }
-                }
-                if(destination_row > row_index_of_blocking_piece)
-                {
-                    return false;
-                }
-            }
-
-            if(starting_row > destination_row) // downwards movement
-            {
-                int row_index_of_blocking_piece = -1;
-
-                for(int row_index = starting_row; row_index > destination_row; row_index--)
-                {
-                    if(_grid[row_index - 1][destination_column-1].bit() != nullptr)
-                    {
-                        if(starting_row == row_index)
-                        {
-                            continue;
-                        }
-                        row_index_of_blocking_piece = row_index;
-                    }
-                }
-                if(destination_row < row_index_of_blocking_piece)
-                {
-                    return false;
-                }
-            }
-        }
-
-        if(starting_row == destination_row) // horizontal movement 
-        {
-            if(starting_column < destination_column) // moving right
-            {
-                int column_index_of_blocking_piece = 9;
-
-                for(int col_index = starting_column; col_index < destination_column; col_index++)
-                {
-                    if(_grid[destination_row-1][col_index-1].bit() != nullptr)
-                    {
-                        if(starting_column == col_index)
-                        {
-                            continue;
-                        }
-                        column_index_of_blocking_piece = col_index;
-                    }
-                }
-                if(destination_column > column_index_of_blocking_piece)
-                {
-                    return false;
-                }
-            }
-
-            if(starting_column > destination_column) // moving left
-            {
-                int column_index_of_blocking_piece = 0;
-
-                for(int col_index = starting_column; col_index > destination_column; col_index--)
-                {
-                    if(_grid[destination_row-1][col_index-1].bit() != nullptr)
-                    {
-                        if(starting_column == col_index)
-                        {
-                            continue;
-                        }
-                        column_index_of_blocking_piece = col_index;
-                    }
-                }
-                if(destination_column < column_index_of_blocking_piece)
-                {
-                    return false;
-                }
-            }
-        }
-
-        if(row_difference == column_difference) // diagonal movement 
-        {
-            int row_step = (destination_row > starting_row) ? 1 : -1;
-            int col_step = (destination_column > starting_column) ? 1 : -1;
-
-            int row_index_of_blocking_piece = 9;
-            int column_index_of_blocking_piece = 9;
-
-            int current_row = starting_row + row_step;
-            int current_column = starting_column + col_step;
-
-            while(current_row != destination_row && current_column != destination_column)
-            {
-                if(_grid[current_row - 1][current_column - 1].bit() != nullptr)
-                {
-                    row_index_of_blocking_piece = current_row;
-                    column_index_of_blocking_piece = current_column;
-                    break;
-                }
-
-                current_column += col_step;
-                current_row += row_step;
-            }
-
-            if (row_index_of_blocking_piece != 9 && column_index_of_blocking_piece != 9 &&
-                ((destination_row > row_index_of_blocking_piece && row_step > 0) ||
-                 (destination_row < row_index_of_blocking_piece && row_step < 0) ||
-                 (destination_column > column_index_of_blocking_piece && col_step > 0) ||
-                 (destination_column < column_index_of_blocking_piece && col_step < 0)))
-            {
-                return false;
-            }
-        }
-
-        if(ImGui::IsMouseReleased(0))
-        { 
-            if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
-            {
-                dst.destroyBit();
-            }
-
-            clear_passant();
-        }
-        return true;
-    }
-    return false;
-}
     return false;
 }
 

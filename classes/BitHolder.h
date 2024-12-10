@@ -20,6 +20,8 @@ public:
 	void setBit(Bit *bit);
 	// destroy the current piece, triggering any associated animations
 	void destroyBit();
+	//clear the piece without destroying it (used for when king is in check)
+	void clearBit() {_bit = nullptr ; };
 	// gametag can be used by games for any purpose
 	const int gameTag() { return _gameTag; };
 	// set the gametag

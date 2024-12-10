@@ -52,6 +52,15 @@ public:
     void       set_half_moves(int num) {half_moves = num;} ;
     int        number_of_half_moves() {return half_moves;} ;
 
+    //Check functions
+    bool       isKingInCheck(int playerNumber);
+    bool       doesMoveResolveCheck(Bit& bit, BitHolder& src, BitHolder& dst); //return the bit that resloves check if true, nullptr if false
+
+    void       set_white_king_square(BitHolder* square) {White_King_Square = square; } ;
+    void       set_black_king_square(BitHolder* square) {Black_King_Square = square; } ;
+
+    BitHolder* White_King_Position() {return White_King_Square;} ;
+    BitHolder* Black_King_Position() {return Black_King_Square; } ;
 private:
     Bit *       PieceForPlayer(const int playerNumber, ChessPiece piece);
     const char  bitToPieceNotation(int row, int column) const;
@@ -61,6 +70,9 @@ private:
     //used for checking en passant
     Bit* passantable_pawn = nullptr;
 
+    //track king spot for check situations
+    BitHolder* White_King_Square;
+    BitHolder* Black_King_Square;
     //used for draws
     int half_moves;
 };
