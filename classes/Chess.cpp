@@ -388,11 +388,21 @@ bool Chess::doesMoveResolveCheck(Bit& bit, BitHolder& src, BitHolder& dst)
     dst.clearBit();
     dst.setBit(movingPiece) ;
 
+    if(bit.gameTag() == King)
+    {
+        (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
+    }
+
     bool stillInCheck = isKingInCheck(getCurrentPlayer()->playerNumber());
 
     dst.clearBit();
     dst.setBit(originalDstPiece);
     src.setBit(movingPiece);
+
+    if(bit.gameTag() == King)
+    {
+        (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(&src) : set_black_king_square(&src) ;
+    }
 
     return !stillInCheck;
 }
@@ -855,7 +865,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
             if(row_difference <= 1 && column_difference <= 1) //only can move one square in any direction
             {
-                if(doesMoveResolveCheck(bit, src, dst))
+                if(!doesMoveResolveCheck(bit, src, dst))
                 {
                     return false;
                 }
@@ -884,7 +894,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     {
                         if(!_grid[starting_row - 1][7].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
                         {
-                            if(doesMoveResolveCheck(bit, src, dst))
+                            if(!doesMoveResolveCheck(bit, src, dst))
                             {
                                 return false;
                             }
@@ -912,7 +922,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     {
                         if(!_grid[starting_row - 1][0].bit()->hasMovedFromStart()) //if the rook to castle to hasnt moved
                         {
-                            if(doesMoveResolveCheck(bit, src, dst))
+                            if(!doesMoveResolveCheck(bit, src, dst))
                             {
                                 return false;
                             }
