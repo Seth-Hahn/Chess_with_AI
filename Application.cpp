@@ -74,4 +74,10 @@ namespace ClassGame {
             gameOver = true;
             gameWinner = winner->playerNumber();
         }
+
+        void StaleMate()
+        {
+            gameOver = true;
+            gameWinner = -1;
+        }
 }

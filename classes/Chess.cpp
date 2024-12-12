@@ -433,7 +433,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
 
         if(bit.gameTag() == Pawn)
         {
-            //white pawn can move forward one 
+            //white pawn can move forward one
             if (destination_row == starting_row + 1 && destination_column == starting_column)
             {
                 if(!dst.empty() || bit.getOwner()->playerNumber() == 1) //cant move to a non-empty spot
@@ -554,13 +554,13 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
             }
 
             //pawn can capture
-            if(starting_column + 1 == destination_column || starting_column - 1 == destination_column) // capturing can happen either left of right
+            if( ( starting_column + 1 == destination_column || starting_column - 1 == destination_column) && ( dst.bit() || passantable_pawn )) // capturing can happen either left of right
             {
                 //white pawn
                 if(starting_row + 1 == destination_row) //capture has to happen one row above
                 {
 
-                    if( (dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 1 ) ) //if pawn is white and piece to capture is black
+                    if( (dst.bit() && dst.bit()->getOwner()->playerNumber() == 1 ) ) //if pawn is white and piece to capture is black
                     {
                         if(!doesMoveResolveCheck(bit, src, dst))
                         {
@@ -602,12 +602,14 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                         }
                         return true;
                     }
+
+                    return false;
                 }
 
                 //black pawn
                 if(starting_row - 1 == destination_row) //capture has to happen one row below
                 {
-                    if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() == 0)
+                    if(dst.bit() && dst.bit()->getOwner()->playerNumber() == 0)
                     {
                         if(!doesMoveResolveCheck(bit, src, dst))
                         {
@@ -648,9 +650,11 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                         }
                         return true;
                     }
+                    return false;
                 }
                 return false;
             }
+            return false;
         }
 
         if(bit.gameTag() == Rook)
@@ -1123,43 +1127,38 @@ void Chess::stopGame()
 
 Player* Chess::checkForWinner() 
 {
-    //current player's king is checked to determine if a checkmate has occured
     int currentPlayer = getCurrentPlayer()->playerNumber();
     int opposingPlayer = (currentPlayer == 0) ? 1 : 0;
 
-    //if king is in check, determine if checkmate by looking for any possible move
-    if(isKingInCheck(currentPlayer))
+    bool isInCheck = isKingInCheck(currentPlayer);
+    bool legalMoveExists = false;
+
+    // Iterate through board to find all the current player's pieces
+    for(int row = 0; row < 8; row++)
     {
-        bool legalMoveExists = false;
-
-        for(int row = 0; row < 8; row++) //iterate through board to find all the current player's pieces
+        for(int col = 0; col < 8; col++)
         {
-            for(int col = 0; col < 8; col++)
+            BitHolder* src = nullptr;
+
+            // Find pieces owned by the current player
+            if(!_grid[row][col].empty() && _grid[row][col].bit()->getOwner()->playerNumber() == currentPlayer)
             {
-                BitHolder* src = nullptr;
+                src = &_grid[row][col];
+            }
 
-                if(!_grid[row][col].empty() && _grid[row][col].bit()->getOwner()->playerNumber() == currentPlayer) //square is not empty and occupied by the current player
+            if(src != nullptr) 
+            {
+                // Look for a viable move for this piece
+                for(int dstRow = 0; dstRow < 8; dstRow++)
                 {
-                    src = &_grid[row][col];
-                }
-
-                if(src != nullptr) 
-                {
-                    for(int dstRow = 0; dstRow < 8; dstRow++) //iterate through board looking for a viable move
+                    for(int dstCol = 0; dstCol < 8; dstCol++)
                     {
-                        for(int dstCol = 0; dstCol < 8; dstCol++)
-                        {
-                            BitHolder* dst = &_grid[dstRow][dstCol];
+                        BitHolder* dst = &_grid[dstRow][dstCol];
 
-                            if(canBitMoveFromTo(*src->bit(), *src, *dst, true))
-                            {
-                                legalMoveExists = true;
-                                break;
-                            }
-                        }
-
-                        if(legalMoveExists)
+                        // Check if the move is legal (prevents own king from being in check)
+                        if(canBitMoveFromTo(*src->bit(), *src, *dst, true))
                         {
+                            legalMoveExists = true;
                             break;
                         }
                     }
@@ -1169,20 +1168,32 @@ Player* Chess::checkForWinner()
                         break;
                     }
                 }
-            }
 
-            if(legalMoveExists)
-            {
-                break;
+                if(legalMoveExists)
+                {
+                    break;
+                }
             }
-        } 
+        }
 
-        if(!legalMoveExists)
+        if(legalMoveExists)
         {
-            Player* winner = (opposingPlayer == 0) ? White_King_Square->bit()->getOwner() : Black_King_Square->bit()->getOwner();
-            ClassGame::EndOfGame(winner);
-            return winner;
-        }    
+            break;
+        }
+    } 
+
+    // Checkmate: king is in check and no legal moves exist
+    if(isInCheck && !legalMoveExists)
+    {
+        Player* winner = (opposingPlayer == 0) ? White_King_Square->bit()->getOwner() : Black_King_Square->bit()->getOwner();
+        ClassGame::EndOfGame(winner);
+        return winner;
+    }
+    // Stalemate: king is NOT in check, but no legal moves exist
+    else if(!isInCheck && !legalMoveExists)
+    {
+        ClassGame::StaleMate();
+        return nullptr;
     }
 
     return nullptr; // No winner yet
@@ -1190,7 +1201,6 @@ Player* Chess::checkForWinner()
 
 bool Chess::checkForDraw()
 {
-    // check to see if the board is full
     return false;
 }
 
