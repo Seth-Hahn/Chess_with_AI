@@ -34,7 +34,7 @@ public:
     void        setStateString(const std::string &s) override;
     bool        actionForEmptyHolder(BitHolder& holder) override;
     bool        canBitMoveFrom(Bit& bit, BitHolder& src) override;
-    bool        canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst) override;
+    bool        canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winner_function) override;
     void        bitMovedFromTo(Bit &bit, BitHolder &src, BitHolder &dst) override;
 
     void        stopGame() override;

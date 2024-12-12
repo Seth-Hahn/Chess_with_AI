@@ -237,7 +237,8 @@ bool Chess::canBitMoveFrom(Bit &bit, BitHolder &src)
     return true;
 }
 
-bool Chess::isKingInCheck(int playerNumber) {
+bool Chess::isKingInCheck(int playerNumber) 
+{
     // Select the correct king's square based on player number
     BitHolder* kingSquare = (playerNumber == 0) ? White_King_Square : Black_King_Square;
     
@@ -347,7 +348,7 @@ bool Chess::isKingInCheck(int playerNumber) {
     }
     
     // Pawn check (different for white and black)
-    int pawnRowDirection = (playerNumber == 0) ? -1 : 1;
+    int pawnRowDirection = (playerNumber == 0) ? 1 : -1;
     int pawnCheckRows[2] = {kingRow + pawnRowDirection, kingRow + pawnRowDirection};
     int pawnCheckCols[2] = {kingCol - 1, kingCol + 1};
     
@@ -410,12 +411,18 @@ bool Chess::doesMoveResolveCheck(Bit& bit, BitHolder& src, BitHolder& dst)
 //TODO: fix kings being able to move and still be in check
 //the rest of check resolution works as intended, kings work
 //almost correct but can still be moved into a check spot on occasion 
-bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
+bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winner_function)
 {
+
     if(bit.getOwner()->playerNumber() == getCurrentPlayer()->playerNumber())
     {
-        bool check = isKingInCheck(getCurrentPlayer()->playerNumber()); //if the king is in check, the check must be resolved
-     
+        //bool check = isKingInCheck(getCurrentPlayer()->playerNumber()); //if the king is in check, the check must be resolved
+
+        if(!dst.empty() && dst.bit()->getOwner()->playerNumber() == bit.getOwner()->playerNumber()) //under no circumstance should a piece be placed in an occupied square owned by the same player
+        {
+            return false;
+        }
+
         //initial position of piece
         int starting_column = src.getPosition().x / 64; //divide by 64 to get index from 1-8
         int starting_row = 10 - (src.getPosition().y /64); //divide by 64, then subtract the result from 10 to get 1-8 index
@@ -424,11 +431,6 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
         int destination_column = dst.getPosition().x / 64;
         int  destination_row = 10 - (dst.getPosition().y /64);
 
-
-        if(starting_column == destination_column && starting_row == destination_row) //can set pieces back down in their original spot
-        {
-            return true;
-        }
         if(bit.gameTag() == Pawn)
         {
             //white pawn can move forward one 
@@ -443,7 +445,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 if(destination_row == 8) //queen promotion
                 {
                     
-                    if(ImGui::IsMouseReleased(0))
+                    if(ImGui::IsMouseReleased(0) && !winner_function)
                     {
                         Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
                         bit.~Bit(); //destroy the pawn
@@ -460,7 +462,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     clear_passant();
                     endTurn();
@@ -483,7 +485,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                         return false;
                     }
 
-                    if(ImGui::IsMouseReleased(0))
+                    if(ImGui::IsMouseReleased(0) && !winner_function)
                     {
                         set_passant(&bit); //pawn is now passantable
                         endTurn();
@@ -502,7 +504,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
 
                 if(destination_row == 1) //queen promotion
                 {
-                    if(ImGui::IsMouseReleased(0))
+                    if(ImGui::IsMouseReleased(0) && !winner_function)
                     {
                         Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
                         bit.~Bit(); //destroy the pawn
@@ -519,7 +521,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     clear_passant();
                     endTurn();
@@ -542,7 +544,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                         return false;
                     }
 
-                    if(ImGui::IsMouseReleased(0))
+                    if(ImGui::IsMouseReleased(0) && !winner_function)
                     {
                         set_passant(&bit); //pawn is now passantable
                         endTurn();
@@ -565,7 +567,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0))
+                        if(ImGui::IsMouseReleased(0) && !winner_function)
                         {
                             dst.destroyBit();
                             clear_passant(); 
@@ -592,7 +594,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0))
+                        if(ImGui::IsMouseReleased(0) && !winner_function)
                         {
                             _grid[starting_row - 1][destination_column - 1].destroyBit();
                             clear_passant();
@@ -612,7 +614,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0))
+                        if(ImGui::IsMouseReleased(0) && !winner_function)
                         {
                             dst.destroyBit();
                             clear_passant();
@@ -638,7 +640,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0))
+                        if(ImGui::IsMouseReleased(0) && !winner_function)
                         {
                             _grid[starting_row - 1][destination_column - 1].destroyBit();
                             clear_passant();
@@ -756,7 +758,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -816,7 +818,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -843,7 +845,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                 {
                     return false;
                 }
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -870,7 +872,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -899,7 +901,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                                 return false;
                             }
 
-                            if(ImGui::IsMouseReleased(0))
+                            if(ImGui::IsMouseReleased(0) && !winner_function)
                             {
                                 Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][7].bit()); //create a new rook to castle with
 
@@ -927,7 +929,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                                 return false;
                             }
 
-                            if(ImGui::IsMouseReleased(0))
+                            if(ImGui::IsMouseReleased(0) && !winner_function)
                             { 
                                 Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][0].bit()); //create a new rook to castle with
 
@@ -1088,7 +1090,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst)
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0))
+                if(ImGui::IsMouseReleased(0) && !winner_function)
                 { 
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
                     {
@@ -1119,10 +1121,71 @@ void Chess::stopGame()
 {
 }
 
-Player* Chess::checkForWinner()
+Player* Chess::checkForWinner() 
 {
-    // check to see if either player has won
-    return nullptr;
+    //current player's king is checked to determine if a checkmate has occured
+    int currentPlayer = getCurrentPlayer()->playerNumber();
+    int opposingPlayer = (currentPlayer == 0) ? 1 : 0;
+
+    //if king is in check, determine if checkmate by looking for any possible move
+    if(isKingInCheck(currentPlayer))
+    {
+        bool legalMoveExists = false;
+
+        for(int row = 0; row < 8; row++) //iterate through board to find all the current player's pieces
+        {
+            for(int col = 0; col < 8; col++)
+            {
+                BitHolder* src = nullptr;
+
+                if(!_grid[row][col].empty() && _grid[row][col].bit()->getOwner()->playerNumber() == currentPlayer) //square is not empty and occupied by the current player
+                {
+                    src = &_grid[row][col];
+                }
+
+                if(src != nullptr) 
+                {
+                    for(int dstRow = 0; dstRow < 8; dstRow++) //iterate through board looking for a viable move
+                    {
+                        for(int dstCol = 0; dstCol < 8; dstCol++)
+                        {
+                            BitHolder* dst = &_grid[dstRow][dstCol];
+
+                            if(canBitMoveFromTo(*src->bit(), *src, *dst, true))
+                            {
+                                legalMoveExists = true;
+                                break;
+                            }
+                        }
+
+                        if(legalMoveExists)
+                        {
+                            break;
+                        }
+                    }
+
+                    if(legalMoveExists)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if(legalMoveExists)
+            {
+                break;
+            }
+        } 
+
+        if(!legalMoveExists)
+        {
+            Player* winner = (opposingPlayer == 0) ? White_King_Square->bit()->getOwner() : Black_King_Square->bit()->getOwner();
+            ClassGame::EndOfGame(winner);
+            return winner;
+        }    
+    }
+
+    return nullptr; // No winner yet
 }
 
 bool Chess::checkForDraw()

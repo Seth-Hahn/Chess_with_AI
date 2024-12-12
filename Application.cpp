@@ -68,4 +68,10 @@ namespace ClassGame {
                 gameWinner = -1;
             }
         }
+
+        void EndOfGame(Player* winner)
+        {
+            gameOver = true;
+            gameWinner = winner->playerNumber();
+        }
 }
