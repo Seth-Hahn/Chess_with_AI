@@ -201,6 +201,7 @@ void Chess::FENtoBoard(std::string FEN_string)
 void Chess::setUpBoard()
 {
     setNumberOfPlayers(2);
+    setAIPlayer(AI_PLAYER);
     _gameOptions.rowX = 8;
     _gameOptions.rowY = 8;
     //
@@ -379,27 +380,38 @@ bool Chess::isKingInCheck(int playerNumber)
 bool Chess::doesMoveResolveCheck(Bit& bit, BitHolder& src, BitHolder& dst) 
 {   
     Bit* originalDstPiece = nullptr;
+
+    //if check is being resolved with a capture
     if(dst.bit() != nullptr)
     {
         originalDstPiece = dst.bit();
     }
+
+    //hold on to the bit while it is temporarily removed from its holders 
     Bit* movingPiece = &bit;
 
+    //set holders bits to nullptr so the piece isnt in multiple places at once
     src.clearBit();
     dst.clearBit();
+
+    //set piece in the destination
     dst.setBit(movingPiece) ;
 
+    //if the piece is a king, it must have its location temporarily updated to properly handle check
     if(bit.gameTag() == King)
     {
         (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
     }
 
+    //is the king still in check after the move is made?
     bool stillInCheck = isKingInCheck(getCurrentPlayer()->playerNumber());
 
+    //undo the move and set everything back to its orignal place
     dst.clearBit();
     dst.setBit(originalDstPiece);
     src.setBit(movingPiece);
 
+    //put king square back
     if(bit.gameTag() == King)
     {
         (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(&src) : set_black_king_square(&src) ;
@@ -445,7 +457,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                 if(destination_row == 8) //queen promotion
                 {
                     
-                    if(ImGui::IsMouseReleased(0) && !winner_function)
+                    if( (ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                     {
                         Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
                         bit.~Bit(); //destroy the pawn
@@ -462,9 +474,15 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -485,9 +503,15 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                         return false;
                     }
 
-                    if(ImGui::IsMouseReleased(0) && !winner_function)
+                    if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                     {
                         set_passant(&bit); //pawn is now passantable
+                        if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                        {
+                            src.clearBit();
+                            dst.setBit(&bit);
+                            bit.setPosition(dst.getPosition());
+                        }
                         endTurn();
                     }
                     return true;
@@ -504,7 +528,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
 
                 if(destination_row == 1) //queen promotion
                 {
-                    if(ImGui::IsMouseReleased(0) && !winner_function)
+                    if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                     {
                         Bit *promoted_queen = PieceForPlayer(bit.getOwner()->playerNumber(), Queen); //create a queen
                         bit.~Bit(); //destroy the pawn
@@ -521,9 +545,15 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -544,9 +574,15 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                         return false;
                     }
 
-                    if(ImGui::IsMouseReleased(0) && !winner_function)
+                    if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                     {
                         set_passant(&bit); //pawn is now passantable
+                        if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                        {
+                            src.clearBit();
+                            dst.setBit(&bit);
+                            bit.setPosition(dst.getPosition());
+                        }
                         endTurn();
                     }
                     return true;
@@ -567,10 +603,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0) && !winner_function)
+                        if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                         {
                             dst.destroyBit();
                             clear_passant(); 
+                            if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                            {
+                                src.clearBit();
+                                dst.setBit(&bit);
+                                bit.setPosition(dst.getPosition());
+                            }
                             endTurn();
 
                             if(destination_row == 8) // queen promotion
@@ -594,10 +636,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0) && !winner_function)
+                        if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                         {
                             _grid[starting_row - 1][destination_column - 1].destroyBit();
                             clear_passant();
+                            if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                            {
+                                src.clearBit();
+                                dst.setBit(&bit);
+                                bit.setPosition(dst.getPosition());
+                            }
                             endTurn();
                         }
                         return true;
@@ -616,10 +664,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0) && !winner_function)
+                        if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                         {
                             dst.destroyBit();
                             clear_passant();
+                            if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                            {
+                                src.clearBit();
+                                dst.setBit(&bit);
+                                bit.setPosition(dst.getPosition());
+                            }
                             endTurn();
 
                             if(destination_row == 1) // queen promotion
@@ -642,10 +696,16 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                             return false;
                         }
 
-                        if(ImGui::IsMouseReleased(0) && !winner_function)
+                        if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                         {
                             _grid[starting_row - 1][destination_column - 1].destroyBit();
                             clear_passant();
+                            if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                            {
+                                src.clearBit();
+                                dst.setBit(&bit);
+                                bit.setPosition(dst.getPosition());
+                            }
                             endTurn();
                         }
                         return true;
@@ -762,7 +822,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -771,6 +831,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     bit.movedFromStart();
 
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -822,7 +888,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -830,6 +896,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     } 
 
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -849,7 +921,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                 {
                     return false;
                 }
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -857,6 +929,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     }
 
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -876,7 +954,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 {
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber())
                     {
@@ -885,6 +963,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     bit.movedFromStart();
                     getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -905,7 +989,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                                 return false;
                             }
 
-                            if(ImGui::IsMouseReleased(0) && !winner_function)
+                            if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                             {
                                 Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][7].bit()); //create a new rook to castle with
 
@@ -918,6 +1002,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                                 bit.movedFromStart();
                                 getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
                                 clear_passant();
+                                if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                                {
+                                    src.clearBit();
+                                    dst.setBit(&bit);
+                                    bit.setPosition(dst.getPosition());
+                                }
                                 endTurn();
                             }
                             return true;
@@ -933,7 +1023,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                                 return false;
                             }
 
-                            if(ImGui::IsMouseReleased(0) && !winner_function)
+                            if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                             { 
                                 Bit *rook_to_castle = new Bit(*_grid[starting_row - 1][0].bit()); //create a new rook to castle with
 
@@ -946,6 +1036,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                                 bit.movedFromStart();
                                 getCurrentPlayer()->playerNumber() ? set_white_king_square(&dst) : set_black_king_square(&dst) ;
                                 clear_passant();
+                                if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                                {
+                                    src.clearBit();
+                                    dst.setBit(&bit);
+                                    bit.setPosition(dst.getPosition());
+                                }
                                 endTurn();
                             }
                             return true;
@@ -1094,7 +1190,7 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     return false;
                 }
 
-                if(ImGui::IsMouseReleased(0) && !winner_function)
+                if((ImGui::IsMouseReleased(0) || getCurrentPlayer()->playerNumber() == getAIPlayer()) && !winner_function)
                 { 
                     if(dst.bit() != nullptr && dst.bit()->getOwner()->playerNumber() != bit.getOwner()->playerNumber()) //capture piece if there is one
                     {
@@ -1102,6 +1198,12 @@ bool Chess::canBitMoveFromTo(Bit& bit, BitHolder& src, BitHolder& dst, bool winn
                     }
 
                     clear_passant();
+                    if(getAIPlayer() == getCurrentPlayer()->playerNumber())
+                    {
+                        src.clearBit();
+                        dst.setBit(&bit);
+                        bit.setPosition(dst.getPosition());
+                    }
                     endTurn();
                 }
                 return true;
@@ -1273,5 +1375,231 @@ void Chess::setStateString(const std::string &s)
 //
 void Chess::updateAI() 
 {
+    if(checkForWinner())
+    {
+        return;
+    }
+
+    //arbitrary low number to be overwritten later
+    int bestScore = std::numeric_limits<int>::min(); 
+    int depth = 4;
+
+    //move the ai will ultimately make
+    BitHolder* bestMoveFrom = nullptr;
+    BitHolder* bestMoveTo = nullptr;
+    Bit* bestPiece = nullptr;
+    //loop through board and find all possible legal moves
+    for(int row = 0; row < 8; row++)
+    {
+        for(int col = 0; col < 8; col++)
+        {
+            BitHolder* src = nullptr;
+            if(_grid[row][col].bit() && _grid[row][col].bit()->getOwner()->playerNumber() == AI_PLAYER) //find ai pieces
+            {
+                src = &_grid[row][col];
+            
+
+                //iterate through board to find possible moves
+                for(int dstRow = 0; dstRow < 8; dstRow++)
+                {
+                    for(int dstCol = 0; dstCol < 8; dstCol++)
+                    {
+                        BitHolder* dst = &_grid[dstRow][dstCol];
+                        
+                        if(canBitMoveFromTo(*src->bit(), *src, *dst, true)) //legal move is found
+                        {
+                            legalMoves.push_back(dst); //add move to possible move list
+                            legalMoveStartingPositions.push_back(src); //add position of the move 
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    //start negamax
+    for(int i = 0; i < legalMoves.size(); i++ )
+    {
+        BitHolder* moveFrom = legalMoveStartingPositions[i];
+        BitHolder* moveTo = legalMoves[i];
+
+        //if the move involves a capture store the piece that is being captured
+        Bit* originalDstPiece = nullptr;
+
+        if(!moveTo->empty())
+        {
+            originalDstPiece = moveTo->bit();
+        }
+
+        //hold on to the bit while it is temporarily removed from its holders 
+        Bit* movingPiece = moveFrom->bit();
+
+        //set holders bits to nullptr so the piece isnt in multiple places at once
+        moveFrom->clearBit();
+        moveTo->clearBit();
+
+        //set piece in the destination
+        moveTo->setBit(movingPiece) ;
+
+        //if the piece is a king, it must have its location temporarily updated to properly handle check
+        if(movingPiece->gameTag() == King)
+        {
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveTo) : set_black_king_square(moveTo) ;
+        }
+
+        //call negamax on the proposed move
+        int score = -negamax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false) ;
+        //undo the move and set everything back to its orignal place
+        moveTo->clearBit();
+        moveTo->setBit(originalDstPiece);
+        moveFrom->setBit(movingPiece);
+
+        //put king square back
+        if(moveTo->gameTag() == King)
+        {
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveFrom) : set_black_king_square(moveFrom) ;
+        }
+
+        //update score if move is better than before
+        if(score > bestScore)
+        {
+            bestScore = score;
+            bestMoveFrom = moveFrom;
+            bestMoveTo = moveTo;
+            bestPiece = moveFrom->bit();
+        }
+    }
+
+    //make the best move available
+    canBitMoveFromTo(*bestMoveFrom->bit(), *bestMoveFrom, *bestMoveTo, false);
+
+    std::cout << "finished move for piece at" << 10 - bestMoveFrom->getPosition().y /64 << bestMoveFrom->getPosition().x / 64 << std::endl;
+
+    //reset legal move vectors
+    legalMoves.clear();
+    legalMoveStartingPositions.clear();
+    return;
+
 }
+
+int Chess::negamax(int depth, int alpha, int beta, bool isMaximizingPlayer)
+{
+    //if the ai has finished its search or finds a winner, return the board state
+    if(depth == 0 || checkForWinner())
+    {
+        return evaluateBoard(stateString());
+    }
+
+    //set as an arbitrary minimum to be overwritten later
+    int max = std::numeric_limits<int>::min();
+
+    //go through legal moves 
+    for(int i = 0; i < legalMoves.size(); i++ )
+    {
+        BitHolder* moveFrom = legalMoveStartingPositions[i];
+        BitHolder* moveTo = legalMoves[i];
+
+        //if the move involves a capture store the piece that is being captured
+        Bit* originalDstPiece = nullptr;
+
+        if(!moveTo->empty())
+        {
+            originalDstPiece = moveTo->bit();
+        }
+
+        //hold on to the bit while it is temporarily removed from its holders 
+        Bit* movingPiece = moveFrom->bit();
+
+        //set holders bits to nullptr so the piece isnt in multiple places at once
+        moveFrom->clearBit();
+        moveTo->clearBit();
+
+        //set piece in the destination
+        moveTo->setBit(movingPiece) ;
+        //if the piece is a king, it must have its location temporarily updated to properly handle check
+        if(moveFrom == ( (AI_PLAYER == 1) ? Black_King_Square : White_King_Square) )
+        {
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveTo) : set_black_king_square(moveTo) ;
+        }
+
+        //call negamax on the proposed move
+        int evaluation = -negamax(depth - 1, -beta, -alpha, !isMaximizingPlayer) ;
+
+        //undo the move and set everything back to its orignal place
+        moveTo->clearBit();
+        moveTo->setBit(originalDstPiece);
+        moveFrom->setBit(movingPiece);
+
+        //put king square back
+        if(moveTo->gameTag() == King)
+        {
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveFrom) : set_black_king_square(moveFrom) ;
+        }
+
+        max = std::max(max, evaluation);
+        alpha = std::max(alpha, evaluation);
+        //update score if move is better than before
+        if(alpha >= beta)
+        {
+            return max; //cut off if beta lower than alpha
+        }
+    }
+
+    return max;
+}
+
+static std::map<char, int> evaluateScores = {
+        {'P', 100}, {'p', -100},
+        {'N', 200}, {'n', -200},
+        {'B', 230}, {'b', -230},
+        {'R', 400}, {'r', -400},
+        {'Q', 900}, {'q', -900},
+        {'K', 2000}, {'k', -2000},
+        {'0', 0} 
+}; 
+
+int Chess::evaluateBoard(std::string state) {
+    int score = 0;
+    for (int i=0; i<64; i++) {
+        score += evaluateScores[state[i]];
+    }
+    for (int i=0; i<64; i++) {
+        char piece = state[i];
+        int j = 63 - i;
+        switch (piece) {
+            case 'N': // Knight
+                score += knightTable[j];
+                break;
+            case 'n':
+                score -= knightTable[63 - j];
+                break;
+            case 'P': // Knight
+                score += pawnTable[j];
+                break;
+            case 'p':
+                score -= pawnTable[63 - j];
+                break;
+            case 'K': // Knight
+                score += kingTable[j];
+                break;
+            case 'k':
+                score -= kingTable[63 - j];
+                break;
+            case 'R': // Knight
+                score += rookTable[j];
+                break;
+            case 'r':
+                score -= rookTable[63 - j];
+                break;
+            case 'Q': // Knight
+                score += queenTable[j];
+                break;
+            case 'q':
+                score -= queenTable[63-j];
+                break;
+        }
+    }
+    return score;
+} 
 

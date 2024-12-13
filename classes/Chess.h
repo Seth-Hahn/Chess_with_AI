@@ -1,7 +1,7 @@
 #pragma once
 #include "Game.h"
 #include "ChessSquare.h"
-
+#include "Evaluate.h"
 const int pieceSize = 64;
 
 enum ChessPiece {
@@ -61,6 +61,10 @@ public:
 
     BitHolder* White_King_Position() {return White_King_Square;} ;
     BitHolder* Black_King_Position() {return Black_King_Square; } ;
+
+    //AI functions
+    int        negamax(int depth, int alpha, int beta, bool isMaximizingPlayer) ;
+    int        evaluateBoard(std::string state) ; 
 private:
     Bit *       PieceForPlayer(const int playerNumber, ChessPiece piece);
     const char  bitToPieceNotation(int row, int column) const;
@@ -75,5 +79,9 @@ private:
     BitHolder* Black_King_Square;
     //used for draws
     int half_moves;
+
+    //used for ai
+    std::vector<BitHolder*> legalMoves;
+    std::vector<BitHolder*> legalMoveStartingPositions;
 };
 

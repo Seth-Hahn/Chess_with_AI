@@ -1,5 +1,6 @@
 #pragma once
-
+#include <map>
+#include "Chess.h"
 /* piece/sq tables */
 
 // piece square tables for every piece (from chess programming wiki)
@@ -65,57 +66,3 @@ const int bishopTable[64] = {
 // make sure you adjust it properly.
 //
 
-/*
-static std::map<char, int> evaluateScores = {
-        {'P', 100}, {'p', -100},
-        {'N', 200}, {'n', -200},
-        {'B', 230}, {'b', -230},
-        {'R', 400}, {'r', -400},
-        {'Q', 900}, {'q', -900},
-        {'K', 2000}, {'k', -2000},
-        {'0', 0}
-};
-
-int Chess::evaluateBoard(const char* state) {
-    int score = 0;
-    for (int i=0; i<64; i++) {
-        score += evaluateScores[state[i]];
-    }
-    for (int i=0; i<64; i++) {
-        char piece = state[i];
-        int j = FLIP(i);
-        switch (piece) {
-            case 'N': // Knight
-                score += knightTable[j];
-                break;
-            case 'n':
-                score -= knightTable[FLIP(j)];
-                break;
-            case 'P': // Knight
-                score += pawnTable[j];
-                break;
-            case 'p':
-                score -= pawnTable[FLIP(j)];
-                break;
-            case 'K': // Knight
-                score += kingTable[j];
-                break;
-            case 'k':
-                score -= kingTable[FLIP(j)];
-                break;
-            case 'R': // Knight
-                score += rookTable[j];
-                break;
-            case 'r':
-                score -= rookTable[FLIP(j)];
-                break;
-            case 'Q': // Knight
-                score += queenTable[j];
-                break;
-            case 'q':
-                score -= queenTable[FLIP(j)];
-                break;
-        }
-    }
-    return score;
-}*/
