@@ -1398,6 +1398,7 @@ void Chess::updateAI()
     BitHolder* bestMoveFrom = nullptr;
     BitHolder* bestMoveTo = nullptr;
     Bit* bestPiece = nullptr;
+
     //loop through board and find all possible legal moves
     for(int row = 0; row < 8; row++)
     {
@@ -1409,7 +1410,7 @@ void Chess::updateAI()
                 src = &_grid[row][col];
             
 
-                //iterate through board to find possible moves
+                //find where on the board the AI could move the piece
                 for(int dstRow = 0; dstRow < 8; dstRow++)
                 {
                     for(int dstCol = 0; dstCol < 8; dstCol++)
@@ -1501,6 +1502,7 @@ int Chess::negamax(int depth, int alpha, int beta, bool isMaximizingPlayer)
     int bestScore = std::numeric_limits<int>::min();
     int bestMoveIndex = -1;
 
+    //evaluate all the legal moves
     for(int i = 0; i < legalMoves.size(); i++)
     {
         BitHolder* moveFrom = legalMoveStartingPositions[i];
