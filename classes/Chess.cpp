@@ -30,6 +30,16 @@ Bit* Chess::PieceForPlayer(const int playerNumber, ChessPiece piece)
     return bit;
 }
 
+static std::map<char, int> evaluateScores = {
+        {'P', 100}, {'p', -100},
+        {'N', 200}, {'n', -200},
+        {'B', 230}, {'b', -230},
+        {'R', 400}, {'r', -400},
+        {'Q', 900}, {'q', -900},
+        {'K', 2000}, {'k', -2000},
+        {'0', 0} 
+}; 
+
 void Chess::FENtoBoard(std::string FEN_string)
 {
     std::istringstream fenStream(FEN_string); //split out the board position of the FEN string
@@ -1382,7 +1392,7 @@ void Chess::updateAI()
 
     //arbitrary low number to be overwritten later
     int bestScore = std::numeric_limits<int>::min(); 
-    int depth = 4;
+    int depth = 3;
 
     //move the ai will ultimately make
     BitHolder* bestMoveFrom = nullptr;
@@ -1406,7 +1416,7 @@ void Chess::updateAI()
                     {
                         BitHolder* dst = &_grid[dstRow][dstCol];
                         
-                        if(canBitMoveFromTo(*src->bit(), *src, *dst, true)) //legal move is found
+                        if(canBitMoveFromTo(*src->bit(), *src, *dst, true) && doesMoveResolveCheck(*src->bit(), *src, *dst)) //legal move is found
                         {
                             legalMoves.push_back(dst); //add move to possible move list
                             legalMoveStartingPositions.push_back(src); //add position of the move 
@@ -1449,12 +1459,12 @@ void Chess::updateAI()
         }
 
         //call negamax on the proposed move
-        int score = -negamax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false) ;
+        int score = -negamax(depth, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), false) ;
         //undo the move and set everything back to its orignal place
         moveTo->clearBit();
         moveTo->setBit(originalDstPiece);
         moveFrom->setBit(movingPiece);
-
+        movingPiece->setPosition(moveFrom->getPosition());
         //put king square back
         if(moveTo->gameTag() == King)
         {
@@ -1474,8 +1484,6 @@ void Chess::updateAI()
     //make the best move available
     canBitMoveFromTo(*bestMoveFrom->bit(), *bestMoveFrom, *bestMoveTo, false);
 
-    std::cout << "finished move for piece at" << 10 - bestMoveFrom->getPosition().y /64 << bestMoveFrom->getPosition().x / 64 << std::endl;
-
     //reset legal move vectors
     legalMoves.clear();
     legalMoveStartingPositions.clear();
@@ -1485,79 +1493,140 @@ void Chess::updateAI()
 
 int Chess::negamax(int depth, int alpha, int beta, bool isMaximizingPlayer)
 {
-    //if the ai has finished its search or finds a winner, return the board state
     if(depth == 0 || checkForWinner())
     {
         return evaluateBoard(stateString());
     }
 
-    //set as an arbitrary minimum to be overwritten later
-    int max = std::numeric_limits<int>::min();
+    int bestScore = std::numeric_limits<int>::min();
+    int bestMoveIndex = -1;
 
-    //go through legal moves 
-    for(int i = 0; i < legalMoves.size(); i++ )
+    for(int i = 0; i < legalMoves.size(); i++)
     {
         BitHolder* moveFrom = legalMoveStartingPositions[i];
         BitHolder* moveTo = legalMoves[i];
 
-        //if the move involves a capture store the piece that is being captured
-        Bit* originalDstPiece = nullptr;
-
-        if(!moveTo->empty())
-        {
-            originalDstPiece = moveTo->bit();
-        }
-
-        //hold on to the bit while it is temporarily removed from its holders 
+        Bit* originalDstPiece = moveTo->empty() ? nullptr : moveTo->bit();
         Bit* movingPiece = moveFrom->bit();
 
-        //set holders bits to nullptr so the piece isnt in multiple places at once
+        // Bonus for capturing pieces
+        int moveToRow = 10 - moveTo->getPosition().y;
+        int moveToCol = moveTo->getPosition().x;
+
+        int captureBonus = originalDstPiece ? evaluateScores[stateString()[ (moveToRow - 1) * 8 + (moveToCol - 1)]] : 0;
+
+        // Penalty for moving a piece that can be captured
+        int captureRisk = evaluateCaptureRisk(movingPiece, moveFrom, moveTo);
+
         moveFrom->clearBit();
         moveTo->clearBit();
-
-        //set piece in the destination
-        moveTo->setBit(movingPiece) ;
-        //if the piece is a king, it must have its location temporarily updated to properly handle check
-        if(moveFrom == ( (AI_PLAYER == 1) ? Black_King_Square : White_King_Square) )
+        moveTo->setBit(movingPiece);
+        // Update king square if necessary
+        if(moveFrom == ((AI_PLAYER == 1) ? Black_King_Square : White_King_Square))
         {
-            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveTo) : set_black_king_square(moveTo) ;
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveTo) : set_black_king_square(moveTo);
         }
 
-        //call negamax on the proposed move
-        int evaluation = -negamax(depth - 1, -beta, -alpha, !isMaximizingPlayer) ;
+        int evaluation = -negamax(depth - 1, -beta, -alpha, !isMaximizingPlayer);
+        
+        // Incorporate capture bonus and capture risk into evaluation
+        evaluation += (captureBonus * 50) - (captureRisk * 100);
 
-        //undo the move and set everything back to its orignal place
+        // Penalize moving the same piece repeatedly
+        if (i > 0 && legalMoveStartingPositions[i-1]->bit() == movingPiece) {
+            evaluation -= 50;  // Discourage repetitive moves
+        }
+
+        // Restore board state
         moveTo->clearBit();
-        moveTo->setBit(originalDstPiece);
+        if(originalDstPiece)
+        {
+            moveTo->setBit(originalDstPiece);
+        }
+        
         moveFrom->setBit(movingPiece);
-
-        //put king square back
+    
         if(moveTo->gameTag() == King)
         {
-            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveFrom) : set_black_king_square(moveFrom) ;
+            (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(moveFrom) : set_black_king_square(moveFrom);
         }
 
-        max = std::max(max, evaluation);
+        // Track best move
+        if (evaluation > bestScore) {
+            bestScore = evaluation;
+            bestMoveIndex = i;
+        }
+
         alpha = std::max(alpha, evaluation);
-        //update score if move is better than before
         if(alpha >= beta)
+            break;
+    }
+
+    return bestScore;
+}
+
+int Chess::evaluateCaptureRisk(Bit* movingPiece, BitHolder* start, BitHolder* destination) 
+{
+    if (!movingPiece || !destination)
+    {
+        return 0;
+    }
+
+    int captureRisk = 0;
+    int playerNumber = movingPiece->getOwner()->playerNumber();
+    int opponentPlayer = (playerNumber == 0) ? 1 : 0;
+
+    // Save the current piece at the destination to simulate the move
+    Bit* originalDstPiece = nullptr;
+    if(destination->bit())
+    {
+        originalDstPiece = destination->bit();
+    }
+    start->clearBit();
+    destination->clearBit();
+    destination->setBit(movingPiece);
+
+    // Update king square if necessary
+    if(start == ((AI_PLAYER == 1) ? Black_King_Square : White_King_Square))
+    {
+        (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(destination) : set_black_king_square(destination);
+    }
+    
+    // Simulate all opponent moves to see if the destination is under attack
+    for (int row = 0; row < 8; row++) 
+    {
+        for (int col = 0; col < 8; col++) 
         {
-            return max; //cut off if beta lower than alpha
+            BitHolder* src = &_grid[row][col];
+            if (!src->empty() && src->bit()->getOwner()->playerNumber() == opponentPlayer) 
+            {
+                // Check if the opponent's piece can move to the destination
+                if (canBitMoveFromTo(*src->bit(), *src, *destination, true)) 
+                {
+                    // Add the value of the piece at risk to the penalty
+                    captureRisk += evaluateScores[movingPiece->gameTag()];
+                }
+            }
         }
     }
 
-    return max;
+    // Restore the original state
+    destination->clearBit();
+    if(originalDstPiece)
+    {
+        destination->setBit(originalDstPiece);
+        originalDstPiece->setPosition(destination->getPosition());
+    }
+    start->setBit(movingPiece);
+    movingPiece->setPosition(start->getPosition());
+    if(movingPiece->gameTag() == King)
+    {
+        (getCurrentPlayer()->playerNumber() == 0) ? set_white_king_square(start) : set_black_king_square(start);
+    }
+
+    return captureRisk;
 }
 
-static std::map<char, int> evaluateScores = {
-        {'P', 100}, {'p', -100},
-        {'N', 200}, {'n', -200},
-        {'B', 230}, {'b', -230},
-        {'R', 400}, {'r', -400},
-        {'Q', 900}, {'q', -900},
-        {'K', 2000}, {'k', -2000},
-        {'0', 0} 
-}; 
 
 int Chess::evaluateBoard(std::string state) {
     int score = 0;

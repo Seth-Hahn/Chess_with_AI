@@ -65,6 +65,7 @@ public:
     //AI functions
     int        negamax(int depth, int alpha, int beta, bool isMaximizingPlayer) ;
     int        evaluateBoard(std::string state) ; 
+    int        evaluateCaptureRisk(Bit* movingPiece,BitHolder* start, BitHolder* destination) ;
 private:
     Bit *       PieceForPlayer(const int playerNumber, ChessPiece piece);
     const char  bitToPieceNotation(int row, int column) const;
@@ -83,5 +84,6 @@ private:
     //used for ai
     std::vector<BitHolder*> legalMoves;
     std::vector<BitHolder*> legalMoveStartingPositions;
+
 };
 

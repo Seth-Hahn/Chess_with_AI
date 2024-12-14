@@ -283,4 +283,37 @@ Since en passant can only happen the move immediately after a pawn goes forward 
 
 <img width="1255" alt="Screenshot 2024-11-14 at 2 53 26 PM" src="https://github.com/user-attachments/assets/8405c303-7266-41ee-99ec-43a8adaba623">
 
+-------------------------------------
+### Challenges
+-------------------------------------
+## Simulating Moves
+One of my largest challenges while coding the AI was coming up with a functional move simulation system
+which allows me to update board states and check potential moves without permanantly altering the board.
+The main issue is that I would need to clear out the bitholder that held the moving piece originally, yet the
+only option I had was to delete the bit associated with the bitholder, leading to a lot of segmentation faulting
+and improper pointer handling. Fixing this involved creating a clearBit() function which allowed me to temporarily set
+the bitholder's bit to nullptr, and thus simulating moves became much simpler to handle.
 
+
+## AI properly determining move validity
+Another challenge was getting the AI to properly interface with the canbitmovefromto function, which handled the piece movement 
+logic and validating moves. Though it works mostly as intended, there are still bugs present in how the AI determines valid moves.
+Sometimes, the AI will jump over pieces it shouldnt be able to, and othertimes it may not even worry about removing itself from check. It will also frequently move
+itself into a position where one of its own pieces can be captured.
+I updated my code to include AI checks throughout that ensure there is a difference between an AI testing the move and an AI committing to a move.
+I implemented an extra parameter into the canbitmovefromto function which essentially acts as a switch that determines whether a move is being simulated
+or actually being played. This helped fix some bugs though not all of them.
+
+
+-------------------------------------
+### Depth Achieved and AI skill
+-------------------------------------
+## max depth achieved
+3 was the maximum depth I was able to achieve with the negamax function. Past that,
+slowdown between turns increased exponentially and eventually the game would crash.
+The overabundance of nested loops within my code is not scaleable to such a large
+number of possibilities.
+
+## AI's skill
+The AI's play is somewhere between slightly worse and slightly (very slightly) better than random. Sometimes it will do a good job at avoiding getting itself 
+captured, othertimes it will sacrifice all of its pieces to me. The logic isnt perfect, even after attempting to add a function that checks for capture risk and some other modifiers that are supposed to reward the AI for capturing valuable pieces. Though the logic  isn't bulletproof, the AI is still running on a negamax/evaluation based logic system instead of being handled completely randomly.
